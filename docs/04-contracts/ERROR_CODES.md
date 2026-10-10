@@ -1,0 +1,57 @@
+---
+document: error-codes
+version: 1.0
+status: active
+authority: contract
+depends_on:
+  - REST_API
+---
+
+# Error Codes
+
+## Identity
+
+- `AUTHENTICATION_REQUIRED`
+- `TOKEN_INVALID`
+- `PERMISSION_DENIED`
+- `TENANT_ACCESS_DENIED`
+- `API_KEY_INVALID`
+
+## Agent
+
+- `AGENT_NOT_FOUND`
+- `AGENT_VERSION_NOT_FOUND`
+- `AGENT_VERSION_IMMUTABLE`
+- `AGENT_PUBLICATION_INVALID`
+- `AGENT_NOT_PUBLISHED`
+
+## Execution
+
+- `EXECUTION_NOT_FOUND`
+- `EXECUTION_ALREADY_COMPLETED`
+- `EXECUTION_CANCELLED`
+- `EXECUTION_LIMIT_EXCEEDED`
+- `EXECUTION_TIMEOUT`
+
+## Tool
+
+- `TOOL_NOT_FOUND`
+- `TOOL_NOT_AUTHORIZED`
+- `TOOL_INPUT_INVALID`
+- `TOOL_TIMEOUT`
+- `TOOL_UNAVAILABLE`
+
+## Knowledge
+
+- `KNOWLEDGE_BASE_NOT_FOUND`
+- `DOCUMENT_NOT_FOUND`
+- `DOCUMENT_PROCESSING_FAILED`
+
+## Platform
+
+- `RATE_LIMITED`
+- `DEPENDENCY_UNAVAILABLE`
+- `VALIDATION_ERROR`
+- `INTERNAL_ERROR`
+
+Error codes are stable machine-readable identifiers. Human-readable messages may change.
