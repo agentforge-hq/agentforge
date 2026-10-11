@@ -1,0 +1,2 @@
+com.agentforge.common.config.AgentForgeJacksonAutoConfiguration
+com.agentforge.common.config.AgentForgeWebAutoConfiguration

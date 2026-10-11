@@ -1,6 +1,6 @@
 # Task: TASK-003 - Implement Identity & Tenant Service
 
-**Status:** Backlog  
+**Status:** In Progress  
 **Depends On:** TASK-001, TASK-002  
 **Target:** `agentforge-identity`
 
