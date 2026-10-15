@@ -30,6 +30,20 @@ related:
 
 ## Representative endpoints
 
+### Authentication & Tenant
+
+`POST /api/v1/auth/register`
+
+Register a new user and create their initial organization (assigns `ORG_ADMIN`).
+
+`POST /api/v1/auth/login`
+
+Authenticate with email/password (no `tenantId` required; resolves active tenant to latest joined organization).
+
+`POST /api/v1/auth/switch-tenant`
+
+Switch active tenant context for authenticated user by issuing a new JWT scoped to the requested organization.
+
 ### Agents
 
 `POST /api/v1/agents`

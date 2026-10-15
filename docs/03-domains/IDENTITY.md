@@ -45,11 +45,13 @@ Credential for programmatic access, scoped to an organization and permission set
 
 ## Authentication model
 
-External identity provider authenticates the user. AgentForge validates the resulting token and maps claims to an application principal.
+External identity provider or native authentication validates the user. AgentForge validates credentials/tokens and maps claims to an application principal.
+At login (`/api/v1/auth/login`), credentials (email/password) are validated without requiring a `tenantId`. The active tenant context is automatically resolved to the latest organization joined by the user (`createdAt DESC`).
 
-## Tenant context
+## Tenant context & switching
 
 The trusted organization context is established before domain authorization.
+Users belonging to multiple organizations can switch their active tenant via `/api/v1/auth/switch-tenant`, which verifies membership in the target organization and issues a new tenant-scoped access token without requiring re-authentication.
 
 ## Role examples
 

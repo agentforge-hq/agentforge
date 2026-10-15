@@ -8,10 +8,14 @@ public enum ErrorCode {
 
     // --- Identity ---
     AUTHENTICATION_REQUIRED(401, "Authentication is required to perform this operation."),
+    UNAUTHORIZED(401, "Authentication failed or credentials are invalid."),
     TOKEN_INVALID(401, "The provided authentication token is invalid or expired."),
     PERMISSION_DENIED(403, "Caller lacks required permission for this operation."),
     TENANT_ACCESS_DENIED(403, "Access to the requested tenant is denied."),
     API_KEY_INVALID(401, "The provided API key is invalid or revoked."),
+    USER_ALREADY_EXISTS(409, "User with the specified email already exists."),
+    USER_NOT_FOUND(404, "User was not found."),
+    ORGANIZATION_ALREADY_EXISTS(409, "Organization with the specified slug already exists."),
 
     // --- Agent ---
     AGENT_NOT_FOUND(404, "Agent was not found."),
