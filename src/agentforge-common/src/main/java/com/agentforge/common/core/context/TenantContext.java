@@ -75,6 +75,23 @@ public record TenantContext(
     }
 
     /**
+     * Factory for an authenticated user who has not yet selected a tenant context (e.g. at initial login).
+     * Grants default account-level self-service access (ROLE_USER, org:create, org:read).
+     */
+    public static TenantContext unscopedUser(String userId) {
+        return unscopedUser(userId, com.agentforge.common.core.security.SecurityConstants.UNSCOPED_USER_ROLES,
+                com.agentforge.common.core.security.SecurityConstants.UNSCOPED_USER_PERMISSIONS);
+    }
+
+    /**
+     * Factory for an authenticated user with custom roles and permissions without an active tenant.
+     */
+    public static TenantContext unscopedUser(String userId, Set<String> roles, Set<String> permissions) {
+        Objects.requireNonNull(userId, "userId must not be null");
+        return new TenantContext(null, userId, roles, permissions, false);
+    }
+
+    /**
      * Factory for global/platform system background jobs (no tenant).
      */
     public static TenantContext globalSystem() {

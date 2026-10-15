@@ -70,6 +70,25 @@ class TenantContextHolderTest {
     }
 
     @Test
+    @DisplayName("should support unscoped user context with default account permissions")
+    void shouldSupportUnscopedUserContext() {
+        TenantContext unscoped = TenantContext.unscopedUser("user-456");
+        TenantContextHolder.setContext(unscoped);
+
+        assertThat(unscoped.isTenantScoped()).isFalse();
+        assertThat(unscoped.getTenantId()).isEmpty();
+        assertThat(unscoped.getUserId()).contains("user-456");
+        assertThat(unscoped.hasRole(com.agentforge.common.core.security.SecurityConstants.ROLE_USER)).isTrue();
+        assertThat(unscoped.hasPermission(com.agentforge.common.core.security.SecurityConstants.PERM_ORG_CREATE)).isTrue();
+        assertThat(unscoped.hasPermission(com.agentforge.common.core.security.SecurityConstants.PERM_ORG_READ)).isTrue();
+        assertThat(unscoped.hasPermission(com.agentforge.common.core.security.SecurityConstants.PERM_AGENT_READ)).isFalse();
+
+        assertThatThrownBy(TenantContextHolder::getRequiredTenantId)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Tenant context is required");
+    }
+
+    @Test
     @DisplayName("should execute action with runWith(Supplier) and clean up afterwards")
     void shouldRunWithSupplierAndCleanup() {
         String result = TenantContextHolder.runWith(sampleContext, () -> {

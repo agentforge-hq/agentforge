@@ -20,6 +20,7 @@ Implement tenant management, user authentication, role-based authorization, and 
 - **DTOs ≠ Persistence Entities:** Persistence JPA entities must never be exposed as public API contracts.
 - **Tenant Isolation:** Every repository query for membership, API keys, and resources must include the `tenant_id` scope.
 - **API Key Hashing:** Store only cryptographic hashes (SHA-256 or BCrypt) in PostgreSQL; raw secrets are returned only once upon creation.
+- **Login Tenant Resolution & Switching:** Login (`/api/v1/auth/login`) takes `email` and `password` without requiring `tenantId`; the active tenant context defaults to the user's latest joined organization (`createdAt DESC`). Authenticated users switch workspaces via `/api/v1/auth/switch-tenant` without re-entering credentials.
 - **Database Rules:** Opaque UUID primary keys, optimistic locking (`@Version`), and Flyway migrations.
 
 ---
@@ -85,37 +86,38 @@ src/main/resources/
 ## 4. Checklist & Deliverables
 
 ### Module & POM Setup
-- [ ] Add `<module>agentforge-identity</module>` to root `src/pom.xml`
-- [ ] Create `agentforge-identity/pom.xml` inheriting from `agentforge-parent`
-- [ ] Add dependencies: `agentforge-common`, `spring-boot-starter-web`, `spring-boot-starter-data-jpa`, `postgresql`, `flyway-core`, `spring-boot-starter-security`, `spring-boot-starter-test`, `testcontainers`
+- [x] Add `<module>agentforge-identity</module>` to root `src/pom.xml`
+- [x] Create `agentforge-identity/pom.xml` inheriting from `agentforge-parent`
+- [x] Add dependencies: `agentforge-common`, `spring-boot-starter-web`, `spring-boot-starter-data-jpa`, `postgresql`, `flyway-core`, `spring-boot-starter-security`, `spring-boot-starter-test`, `testcontainers`
 
 ### Domain Models (`com.agentforge.identity.domain.model`)
-- [ ] `Organization`: Tenant boundary with `TenantId`, name, status
-- [ ] `User`: Human identity with email, password hash, status
-- [ ] `Membership`: Associates `User` with `Organization` and roles
-- [ ] `ApiKey`: Programmatic credential with hashed secret, tenant ID, and scopes
-- [ ] `Role` & `Permission` enums / constants
+- [x] `Organization`: Tenant boundary with `TenantId`, name, status
+- [x] `User`: Human identity with email, password hash, status
+- [x] `Membership`: Associates `User` with `Organization` and roles
+- [x] `ApiKey`: Programmatic credential with hashed secret, tenant ID, and scopes
+- [x] `Role` & `Permission` enums / constants
 
 ### Database Migrations (`src/main/resources/db/migration`)
-- [ ] `V1__init_identity_schema.sql`: Tables for `organizations`, `users`, `memberships`, `api_keys` with UUID primary keys and indexes
+- [x] `V1__init_identity_schema.sql`: Tables for `organizations`, `users`, `memberships`, `api_keys` with UUID primary keys and indexes
 
 ### Persistence (`com.agentforge.identity.infrastructure.persistence`)
-- [ ] JPA Entities: `OrganizationEntity`, `UserEntity`, `MembershipEntity`, `ApiKeyEntity`
-- [ ] Spring Data JPA repositories with tenant-scoped query methods
+- [x] JPA Entities: `OrganizationEntity`, `UserEntity`, `MembershipEntity`, `ApiKeyEntity`
+- [x] Spring Data JPA repositories with tenant-scoped query methods
 
 ### Security & Authentication (`com.agentforge.identity.infrastructure.security`)
-- [ ] `JwtTokenProvider`: Token signing, validation, and claim parsing
-- [ ] `SecurityConfig`: Spring Security filter chain setup
+- [x] `JwtTokenProvider`: Asymmetric RSA (RS256) token signing, verification, and RFC 7517 JWKS output
+- [x] `SecurityConfig`: Spring Security filter chain setup
+- [x] `JwksController`: Public `/.well-known/jwks.json` endpoint for downstream microservices and gateways
 - [ ] `ApiKeyAuthenticationFilter`: Validates hashed API keys for programmatic access
 
 ### Application Services (`com.agentforge.identity.application.service`)
 - [ ] `OrganizationService`: Tenant creation and management
-- [ ] `AuthService`: User registration, login, JWT token issuance
+- [ ] `AuthService`: User registration, login (latest joined tenant resolution), switch tenant, JWT token issuance
 - [ ] `MembershipService`: Adding/removing users from organizations
 - [ ] `ApiKeyService`: Generation (returns raw key once) and hash validation
 
 ### API Controllers & DTOs (`com.agentforge.identity.api`)
-- [ ] `AuthController`: `/api/v1/auth/register`, `/api/v1/auth/login`
+- [ ] `AuthController`: `/api/v1/auth/register`, `/api/v1/auth/login`, `/api/v1/auth/switch-tenant`
 - [ ] `OrganizationController`: `/api/v1/organizations`
 - [ ] `ApiKeyController`: `/api/v1/api-keys`
 
