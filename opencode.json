@@ -1,0 +1,47 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow"
+    },
+    "edit": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny"
+    },
+    "bash": {
+      "*": "ask",
+      "git status*": "allow",
+      "git log*": "allow",
+      "git diff*": "allow",
+      "git show*": "allow",
+      "git push*": "deny",
+      "git clean*": "deny",
+      "git reset*": "ask",
+      "rm *": "deny",
+      "rmdir *": "deny",
+      "del *": "deny",
+      "Remove-Item*": "deny",
+      "mkfs*": "deny",
+      "dd *": "deny",
+      "format *": "deny",
+      "docker system prune*": "deny",
+      "docker compose down -v*": "deny"
+    },
+    "task": {
+      "*": "deny",
+      "context-researcher": "allow",
+      "code-reviewer": "allow",
+      "test-runner": "allow",
+      "doc-updater": "allow",
+      "explore": "allow"
+    },
+    "external_directory": "ask",
+    "webfetch": "ask",
+    "websearch": "allow",
+    "skill": "allow"
+  }
+}
