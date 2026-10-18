@@ -28,7 +28,9 @@ script execution support, account availability or instruction semantics.
 | Muse.ai | No local skill root assumed | Manual ZIP export only; native skill ingestion and script execution are unverified. Desktop UI presence does not establish local skill discovery. |
 
 The machine-readable map is in `config.default.json`. Discovery precedence is
-not simulated. An alias/duplicate finding means repeated filesystem exposure,
+not simulated. Duplicate reports retain a name-level `kind`. Mixed sets also
+include `alias_groups` and `identical_groups` so an alias or identical subset
+remains visible within a divergent name. An alias/duplicate finding means repeated filesystem exposure,
 not proof of repeated prompt injection. Some harnesses shadow or replace names.
 The explicit Codex `.system` root comes from local observation on 2026-10-18;
 normal recursive walking still skips other hidden directories. A plugin cache
@@ -58,10 +60,10 @@ review the target's permission model. Unknown `subagent: true` or
 From this skill directory:
 
 ```sh
-python3.11 scripts/af_sync.py export --skill /path/to/skill-name --harness claude-code --isolate --destination /path/to/target/skill-name
-python3.11 scripts/af_sync.py export --skill /path/to/skill-name --harness codex --destination /path/to/target/skill-name
-python3.11 scripts/af_sync.py export --skill /path/to/skill --harness cursor --format cursor-rule --destination /path/to/rule.mdc
-python3.11 scripts/af_sync.py export --skill /path/to/skill --harness chatgpt --destination /path/to/bundle.zip
+./scripts/agentforge sync export --skill /path/to/skill-name --harness claude-code --isolate --destination /path/to/target/skill-name
+./scripts/agentforge sync export --skill /path/to/skill-name --harness codex --destination /path/to/target/skill-name
+./scripts/agentforge sync export --skill /path/to/skill --harness cursor --format cursor-rule --destination /path/to/rule.mdc
+./scripts/agentforge sync export --skill /path/to/skill --harness chatgpt --destination /path/to/bundle.zip
 ```
 
 Preview first; repeat with `--apply` within the authorized scope. `cursor-rule`

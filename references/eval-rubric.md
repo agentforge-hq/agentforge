@@ -10,7 +10,7 @@ It is not a published benchmark or evidence of task success. The weights in
 | Structure | 20 | Required name/description, name-directory agreement, frontmatter syntax, compatibility length |
 | Routing | 20 | Positive task trigger, specific vocabulary, description budget |
 | Economy | 20 | Body/router budget, repeated instruction lines |
-| Execution | 20 | Python AST syntax, literal argparse options, documented script references |
+| Execution | 20 | Go AST syntax, literal flag declarations, Python compatibility inspection, documented script references |
 | Maintenance | 10 | Existing local references and an observable verification step |
 | Safety | 10 | Escaping script paths, instruction override and remote pipe-to-shell patterns |
 
@@ -29,21 +29,28 @@ failure, and an inspect exit code of 0 does not mean trustworthy.
 From the installed skill directory:
 
 ```sh
-python3.11 scripts/af_scanner.py --project /path/to/repo --fail-on-budget
-python3.11 scripts/af_linter.py /path/to/skill --fail-under 80
-python3.11 scripts/af_linter.py --root /path/to/skills --collision-threshold 0.55
-python3.11 scripts/af_linter.py --root /path/to/skills --full-matrix
+./scripts/agentforge audit --project /path/to/repo --fail-on-budget
+./scripts/agentforge lint /path/to/skill --fail-under 80
+./scripts/agentforge lint --root /path/to/skills --collision-threshold 0.55
+./scripts/agentforge lint --root /path/to/skills --full-matrix
 ```
 
-JSON config overlays merge dictionaries; arrays replace arrays. Use an explicit
+Defaults are embedded in the executable; the adjacent `config.default.json` is
+a readable copy. JSON config overlays merge dictionaries; arrays replace arrays. Use an explicit
 `--config /path/to/overlay.json` to change roots, budgets or weights. No commands
-implicitly rewrite the default config. Global options on sync/discover/drift go
-**before** the subcommand; subcommand options, including `--apply`, go after it.
+implicitly rewrite the default config. Shared `--config`, `--project` and
+`--state-dir` options can appear before or after the command. Command-specific
+options, including `--apply`, follow the selected command/subcommand.
 
 ## Script verification boundary
 
-The linter parses Python with `ast`, never imports or runs inspected scripts.
-It reads literal `add_argument()` option strings. It pools flags across
+The Go runtime parses Go scripts with the standard Go AST parser and reads
+literal flag declarations. Python compatibility checks tokenize common strings,
+comments and balanced delimiters, then inspect literal `add_argument()` options.
+Python inspection is not a full parser and cannot establish Python syntax
+validity. It reports that boundary explicitly; unusual string forms, decorators
+or dynamically built arguments may require manual review. The linter never
+imports or runs inspected scripts. It pools flags across
 subcommands and cannot establish that a flag is valid for a particular command,
 that a positional argument is correct, or that the script works. Dynamic
 argument declarations are marked for manual verification. It reads linked
@@ -78,7 +85,7 @@ ambiguous requests. Example (not an LLM judge):
 ```
 
 ```sh
-python3.11 scripts/af_linter.py --root /path/to/skills --trigger-tests /path/to/cases.json
+./scripts/agentforge lint --root /path/to/skills --trigger-tests /path/to/cases.json
 ```
 
 A case passes when a unique eligible top lexical match is in `expected`;
@@ -115,5 +122,5 @@ reduce the relevant budget; justify growth with a demonstrated missing case.
 Run representative positive/negative cases and the scripts' regression suite:
 
 ```sh
-python3.11 -m unittest discover -s tests -v
+go test ./...
 ```

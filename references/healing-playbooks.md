@@ -21,7 +21,7 @@ uncertainty. Avoid copying sensitive transcript excerpts into new artifacts.
 ## Inspect drift
 
 ```sh
-python3.11 scripts/af_drift.py audit --skill /path/to/skill --repo /path/to/repo --base HEAD~10 --transcript /path/to/session.jsonl --pr /path/to/pr.json
+./scripts/agentforge drift audit --skill /path/to/skill --repo /path/to/repo --base HEAD~10 --transcript /path/to/session.jsonl --pr /path/to/pr.json
 ```
 
 Git compares the baseline commit with the current worktree and reads at most
@@ -35,11 +35,11 @@ correction. No inferred fix is applied automatically.
 ## `/automate-me` distillation
 
 ```sh
-python3.11 scripts/af_drift.py distill --transcript /path/to/session.jsonl --name local-check --description 'Run validated local checks when preparing this project for review.'
+./scripts/agentforge drift distill --transcript /path/to/session.jsonl --name local-check --description 'Run validated local checks when preparing this project for review.'
 ```
 
 This is a workflow route/CLI alias, not registration of a slash command in every
-harness. `af_drift.py automate-me` is an equivalent subcommand. Repeat with
+harness. `agentforge drift automate-me` is an equivalent subcommand. Repeat with
 `--apply` to save under `~/.local/share/agentforge/drafts/local-check`. No active
 skill is installed. Candidates require repetition in two distinct messages;
 that does not prove success, recurrence across jobs, safe ordering or correct
@@ -51,15 +51,16 @@ Validate a small repeated workflow before turning it into a real skill.
 ## Deduplication and cold storage
 
 ```sh
-python3.11 scripts/af_sync.py dedupe --canonical /path/to/canonical --duplicate /path/to/copy
-python3.11 scripts/af_sync.py cold --skill /path/to/rare-skill
-python3.11 scripts/af_sync.py restore --transaction TRANSACTION_ID
+./scripts/agentforge sync dedupe --canonical /path/to/canonical --duplicate /path/to/copy
+./scripts/agentforge sync cold --skill /path/to/rare-skill
+./scripts/agentforge sync restore --transaction TRANSACTION_ID
 ```
 
 Preview before adding `--apply`. Deduplication requires equal declared names
 and full tree fingerprints, including script bytes, executable bits and symlink
-targets. Fingerprints exclude `.git`, `__pycache__`, `.pytest_cache`, `.ruff_cache` and
-`.DS_Store`; cold moves still preserve them. Differing executable permissions
+targets. Fingerprints exclude `.git`, `__pycache__`, `.pytest_cache` and `.ruff_cache`
+directories; cold moves still preserve them. Portable exports also omit
+`.DS_Store` files. Differing executable permissions
 remain divergent even when `SKILL.md` is identical. Inspect the difference before
 concluding that instructions drifted. Distinct trees containing symlinks
 need manual dependency review; top-level aliases to the same tree are supported.
@@ -80,11 +81,11 @@ policy is automated in v0.1.
 ## Discover, quarantine and promote
 
 ```sh
-python3.11 scripts/af_discover.py search --query 'document extraction'
-python3.11 scripts/af_discover.py fetch owner/repo/path/to/skill --ref main
-python3.11 scripts/af_discover.py fetch https://skills.sh/owner/repo/skill-slug
-python3.11 scripts/af_discover.py inspect --path /path/to/quarantine/skill
-python3.11 scripts/af_sync.py promote --quarantine /path/to/quarantine --destination /path/to/skills/skill-name
+./scripts/agentforge discover search --query 'document extraction'
+./scripts/agentforge discover fetch owner/repo/path/to/skill --ref main
+./scripts/agentforge discover fetch https://skills.sh/owner/repo/skill-slug
+./scripts/agentforge discover inspect --path /path/to/quarantine/skill
+./scripts/agentforge sync promote --quarantine /path/to/quarantine --destination /path/to/skills/skill-name
 ```
 
 Fetch resolves a ref to an immutable GitHub commit and validates a bounded ZIP.

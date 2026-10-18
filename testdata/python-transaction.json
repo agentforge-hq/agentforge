@@ -1,0 +1,22 @@
+{
+  "manifest": {
+    "applied": true,
+    "canonical": null,
+    "id": "00000000000000000000000000000000",
+    "items": [
+      {
+        "kind": "directory",
+        "parent_real": "$ROOT/source",
+        "sha256": "1a4a89fbb5c677374b541330f36d6b0c1ecead89b1c54a4b52e57d5579bc8a75",
+        "source": "$ROOT/source/example",
+        "status": "stored",
+        "stored": "0"
+      }
+    ],
+    "operation": "cold",
+    "status": "stored"
+  },
+  "files": {
+    "0/SKILL.md": "---\nname: example\ndescription: Validate local reports when checking data.\n---\nVerify output.\n"
+  }
+}
