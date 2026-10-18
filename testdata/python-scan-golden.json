@@ -1,0 +1,75 @@
+{
+  "coverage": [
+    {
+      "harness": "custom",
+      "matches": [
+        "$ROOT/skills"
+      ],
+      "pattern": "$ROOT/skills",
+      "status": "custom"
+    }
+  ],
+  "duplicates": [
+    {
+      "harness_exposure": {
+        "custom": 2
+      },
+      "kind": "identical",
+      "name": "example",
+      "paths": [
+        "$ROOT/skills/left/example/SKILL.md",
+        "$ROOT/skills/right/example/SKILL.md"
+      ]
+    }
+  ],
+  "errors": [],
+  "project": "$ROOT",
+  "project_scopes": [
+    "$ROOT"
+  ],
+  "rules": [],
+  "scope": "Configured paths only; exposure estimates, not observed harness prompt contents or precedence",
+  "skills": [
+    {
+      "description": "Validate local reports when checking data. Not for image generation.",
+      "diagnostics": [],
+      "fingerprint_error": null,
+      "harnesses": [
+        "custom"
+      ],
+      "index_tokens_estimate": 28,
+      "name": "example",
+      "path": "$ROOT/skills/left/example/SKILL.md",
+      "real_path": "$ROOT/skills/left/example/SKILL.md",
+      "tokens_estimate": 14,
+      "tree_sha256": "d398b1f91182612807b0303e9c1b9cabae1ad882a8c56053bf6009ba638ba4bc"
+    },
+    {
+      "description": "Validate local reports when checking data. Not for image generation.",
+      "diagnostics": [],
+      "fingerprint_error": null,
+      "harnesses": [
+        "custom"
+      ],
+      "index_tokens_estimate": 28,
+      "name": "example",
+      "path": "$ROOT/skills/right/example/SKILL.md",
+      "real_path": "$ROOT/skills/right/example/SKILL.md",
+      "tokens_estimate": 14,
+      "tree_sha256": "d398b1f91182612807b0303e9c1b9cabae1ad882a8c56053bf6009ba638ba4bc"
+    }
+  ],
+  "summaries": {
+    "custom": {
+      "always_rule_tokens_estimate": 0,
+      "conditional_rule_tokens_estimate": 0,
+      "index_tokens_estimate": 56,
+      "over_eager_budget": false,
+      "over_index_budget": false,
+      "skill_occurrences": 2,
+      "unique_physical_skills": 2
+    }
+  },
+  "token_method": "ceil(UTF-8 bytes / 4); heuristic, not exact",
+  "version": "0.1.0"
+}

@@ -5,3 +5,6 @@ __pycache__/
 .DS_Store
 .env
 .env.*
+/scripts/agentforge
+/scripts/agentforge.exe
+/dist/

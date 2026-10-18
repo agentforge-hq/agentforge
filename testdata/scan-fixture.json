@@ -1,0 +1,14 @@
+{
+  "files": {
+    "skills/left/example/SKILL.md": "---\nname: example\ndescription: Validate local reports when checking data. Not for image generation.\n---\nRead [the guide](references/check.md). Verify output.\n",
+    "skills/left/example/references/check.md": "Check the expected output.\n",
+    "skills/left/example/scripts/run.py": "p.add_argument(\"--actual\")\n",
+    "skills/right/example/SKILL.md": "---\nname: example\ndescription: Validate local reports when checking data. Not for image generation.\n---\nRead [the guide](references/check.md). Verify output.\n",
+    "skills/right/example/references/check.md": "Check the expected output.\n",
+    "skills/right/example/scripts/run.py": "p.add_argument(\"--actual\")\n"
+  },
+  "directories": [
+    "skills/left/example/empty",
+    "skills/right/example/empty"
+  ]
+}

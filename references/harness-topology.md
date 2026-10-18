@@ -58,10 +58,10 @@ review the target's permission model. Unknown `subagent: true` or
 From this skill directory:
 
 ```sh
-python3.11 scripts/af_sync.py export --skill /path/to/skill-name --harness claude-code --isolate --destination /path/to/target/skill-name
-python3.11 scripts/af_sync.py export --skill /path/to/skill-name --harness codex --destination /path/to/target/skill-name
-python3.11 scripts/af_sync.py export --skill /path/to/skill --harness cursor --format cursor-rule --destination /path/to/rule.mdc
-python3.11 scripts/af_sync.py export --skill /path/to/skill --harness chatgpt --destination /path/to/bundle.zip
+./scripts/agentforge sync export --skill /path/to/skill-name --harness claude-code --isolate --destination /path/to/target/skill-name
+./scripts/agentforge sync export --skill /path/to/skill-name --harness codex --destination /path/to/target/skill-name
+./scripts/agentforge sync export --skill /path/to/skill --harness cursor --format cursor-rule --destination /path/to/rule.mdc
+./scripts/agentforge sync export --skill /path/to/skill --harness chatgpt --destination /path/to/bundle.zip
 ```
 
 Preview first; repeat with `--apply` within the authorized scope. `cursor-rule`
