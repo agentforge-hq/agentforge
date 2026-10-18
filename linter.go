@@ -558,11 +558,13 @@ func (e *Engine) LintSkill(root string) (M, error) {
 			if filepath.Ext(command.Script) != ".py" && filepath.Ext(command.Script) != ".go" {
 				continue
 			}
+			record, ok := scripts[command.Script]
+			if !ok {
+				issues = append(issues, M{"code": "unverified-command", "message": "No inspectable script: " + command.Script, "severity": "error", "file": relative, "line": command.Line})
+				continue
+			}
 			for _, option := range command.Options {
-				record, ok := scripts[command.Script]
-				if !ok {
-					issues = append(issues, M{"code": "unverified-command", "message": "No inspectable script: " + command.Script, "severity": "error", "file": relative, "line": command.Line})
-				} else if !contains(stringsOf(record["flags"]), option) {
+				if !contains(stringsOf(record["flags"]), option) {
 					severity := "error"
 					message := command.Script + " does not declare " + option
 					if record["dynamic_options"] == true {

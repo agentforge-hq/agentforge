@@ -75,6 +75,22 @@ func TestRealMissingReferenceAndScriptSyntaxRemainErrors(t *testing.T) {
 		t.Fatal(result)
 	}
 }
+func TestUnverifiedCommandReportedOncePerInvocation(t *testing.T) {
+	f := setup(t)
+	skill := f.skill("example", "", "", "Run \x60go run scripts/broken.go --one --two\x60. Verify output.")
+	writeFile(t, filepath.Join(skill, "scripts", "broken.go"), "package main\nfunc broken(")
+	result, err := f.e.LintSkill(skill)
+	must(t, err)
+	count := 0
+	for _, issue := range result["issues"].([]M) {
+		if issue["code"] == "unverified-command" {
+			count++
+		}
+	}
+	if count != 1 || !hasIssue(result, "go-syntax") {
+		t.Fatal(result)
+	}
+}
 func TestExamplesAndGeneratedOutputsAreNotDependencies(t *testing.T) {
 	f := setup(t)
 	skill := f.skill("example", "", "", "Examples: \x60assets/logo.png\x60, \x60scripts/rotate_pdf.py\x60.\nVerify generated \x60assets/preview.png\x60.\n\x60\x60\x60markdown\nRead [example](references/example.md).\n\x60\x60\x60\nRead [guide](references/required.md).\nVerify output.")

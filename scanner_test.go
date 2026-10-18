@@ -172,6 +172,33 @@ func TestInventoryAliasesAndCycles(t *testing.T) {
 		t.Fatalf("%v", result)
 	}
 }
+func TestInventoryPreservesMixedDuplicateRelationships(t *testing.T) {
+	f := setup(t)
+	root := filepath.Join(f.root, "skills")
+	canonical := f.skill("skills/canonical", "", "", "")
+	f.skill("skills/copy", "", "", "")
+	divergent := f.skill("skills/divergent", "", "", "")
+	writeFile(t, filepath.Join(divergent, "extra.txt"), "different")
+	link(t, canonical, filepath.Join(root, "alias"))
+	for _, withDivergent := range []bool{true, false} {
+		if !withDivergent {
+			must(t, os.RemoveAll(divergent))
+		}
+		result, err := f.e.Scan(f.root, []string{root})
+		must(t, err)
+		group := result["duplicates"].([]M)[0]
+		want := "identical"
+		if withDivergent {
+			want = "divergent"
+		}
+		aliases := group["alias_groups"].([]M)
+		identical := group["identical_groups"].([]M)
+		if group["kind"] != want || len(aliases) != 1 || len(stringsOf(aliases[0]["paths"])) != 2 ||
+			len(identical) != 1 || len(stringsOf(identical[0]["paths"])) != 3 {
+			t.Fatal(group)
+		}
+	}
+}
 func TestInventoryDivergentScriptContent(t *testing.T) {
 	f := setup(t)
 	left := f.skill("a/example", "", "", "")

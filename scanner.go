@@ -318,6 +318,7 @@ func (e *Engine) Scan(project string, roots []string) (M, error) {
 			continue
 		}
 		physical, hashes := map[string]bool{}, map[string]bool{}
+		byPhysical, byHash := map[string][]M{}, map[string][]M{}
 		unverified := false
 		paths := []string{}
 		exposure := map[string]int{}
@@ -326,11 +327,13 @@ func (e *Engine) Scan(project string, roots []string) (M, error) {
 		}
 		for _, copy := range copies {
 			physical[str(copy["real_path"])] = true
+			byPhysical[str(copy["real_path"])] = append(byPhysical[str(copy["real_path"])], copy)
 			paths = append(paths, str(copy["path"]))
 			if copy["tree_sha256"] == nil {
 				unverified = true
 			} else {
 				hashes[str(copy["tree_sha256"])] = true
+				byHash[str(copy["tree_sha256"])] = append(byHash[str(copy["tree_sha256"])], copy)
 			}
 			for _, h := range stringsOf(copy["harnesses"]) {
 				exposure[h]++
@@ -344,7 +347,34 @@ func (e *Engine) Scan(project string, roots []string) (M, error) {
 		} else if len(hashes) == 1 {
 			kind = "identical"
 		}
-		duplicates = append(duplicates, M{"name": name, "kind": kind, "paths": paths, "harness_exposure": exposure})
+		group := M{"name": name, "kind": kind, "paths": paths, "harness_exposure": exposure}
+		// Preserve relationships inside mixed sets without changing simple-pair reports.
+		if len(physical) > 1 {
+			aliases, identical := []M{}, []M{}
+			for _, real := range sortedKeys(byPhysical) {
+				if len(byPhysical[real]) > 1 {
+					members := []string{}
+					for _, copy := range byPhysical[real] {
+						members = append(members, str(copy["path"]))
+					}
+					aliases = append(aliases, M{"real_path": real, "paths": members})
+				}
+			}
+			for _, hash := range sortedKeys(byHash) {
+				roots, members := map[string]bool{}, []string{}
+				for _, copy := range byHash[hash] {
+					roots[str(copy["real_path"])] = true
+					members = append(members, str(copy["path"]))
+				}
+				if len(roots) > 1 {
+					identical = append(identical, M{"tree_sha256": hash, "paths": members})
+				}
+			}
+			if len(aliases) > 0 || len(hashes) > 1 && len(identical) > 0 {
+				group["alias_groups"], group["identical_groups"] = aliases, identical
+			}
+		}
+		duplicates = append(duplicates, group)
 	}
 	summaries := map[string]M{}
 	for harness := range profiles {
