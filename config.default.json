@@ -1,0 +1,91 @@
+{
+  "version": "0.1.0",
+  "verified_on": "2026-10-18",
+  "budgets": {"index_tokens": 3500, "eager_tokens": 2000, "skill_tokens": 2000, "router_tokens": 1000, "description_tokens": 100},
+  "limits": {"file_bytes": 1048576, "hash_file_bytes": 134217728, "tree_bytes": 268435456, "extract_bytes": 20971520, "tree_files": 5000, "scan_dirs": 10000, "download_bytes": 26214400},
+  "sdqs_weights": {"structure": 20, "routing": 20, "economy": 20, "execution": 20, "maintenance": 10, "safety": 10},
+  "collision_threshold": 0.55,
+  "harnesses": {
+    "claude-code": {
+      "status": "documented; plugin activation is not inferred",
+      "skill_roots": ["{home}/.claude/skills", "{project}/.claude/skills", "{home}/.claude/plugins/cache/*/*/*/skills"],
+      "rules": [{"path": "{home}/.claude/CLAUDE.md", "load": "always"}, {"path": "{project}/CLAUDE.md", "load": "always"}, {"path": "{project}/.claude/rules/**/*.md", "load": "candidate"}],
+      "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools", "disable-model-invocation", "user-invocable", "context", "agent", "model", "argument-hint", "paths", "background"],
+      "isolation": "context: fork",
+      "source": "https://code.claude.com/docs/en/skills"
+    },
+    "codex": {
+      "status": "documented universal roots; legacy/cache paths are audit candidates",
+      "skill_roots": ["{home}/.agents/skills", "{project}/.agents/skills", "/etc/codex/skills", "{codex_home}/skills", "{codex_home}/plugins/cache/*/*/skills", "{codex_home}/plugins/cache/*/*/*/skills"],
+      "rules": [{"path": "{codex_home}/AGENTS.md", "load": "always"}, {"path": "{codex_home}/AGENTS.override.md", "load": "candidate"}, {"path": "{project}/AGENTS.md", "load": "always"}, {"path": "{project}/AGENTS.override.md", "load": "candidate"}],
+      "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools"],
+      "isolation": null,
+      "source": "https://learn.chatgpt.com/docs/build-skills"
+    },
+    "cursor": {
+      "status": "documented; nested workspace skills need additional roots",
+      "skill_roots": ["{home}/.agents/skills", "{project}/.agents/skills", "{home}/.cursor/skills", "{project}/.cursor/skills", "{home}/.claude/skills", "{project}/.claude/skills", "{codex_home}/skills", "{project}/.codex/skills"],
+      "rules": [{"path": "{project}/.cursor/rules/**/*.mdc", "load": "frontmatter"}, {"path": "{project}/AGENTS.md", "load": "always"}, {"path": "{project}/.cursorrules", "load": "candidate"}],
+      "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools", "disable-model-invocation", "paths"],
+      "isolation": null,
+      "source": "https://cursor.com/docs/skills"
+    },
+    "devin": {
+      "status": "audit candidates; CLI version and extra roots require local verification",
+      "skill_roots": ["{project}/.agents/skills", "{project}/.devin/skills", "{project}/.github/skills", "{project}/.claude/skills", "{project}/.cognition/skills", "{project}/.windsurf/skills", "{home}/.agents/skills", "{home}/.devin/skills"],
+      "rules": [{"path": "{project}/AGENTS.md", "load": "candidate"}, {"path": "{project}/CLAUDE.md", "load": "candidate"}],
+      "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools", "argument-hint", "triggers"],
+      "isolation": null,
+      "source": "https://docs.devin.ai/product-guides/skills"
+    },
+    "gemini": {
+      "status": "documented; extension and system roots need explicit configuration",
+      "skill_roots": ["{home}/.agents/skills", "{project}/.agents/skills", "{home}/.gemini/skills", "{project}/.gemini/skills"],
+      "rules": [{"path": "{home}/.gemini/GEMINI.md", "load": "always"}, {"path": "{project}/GEMINI.md", "load": "always"}],
+      "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools"],
+      "isolation": null,
+      "source": "https://geminicli.com/docs/cli/skills/"
+    },
+    "antigravity": {
+      "status": "documented App/CLI/IDE roots; legacy roots included as candidates",
+      "skill_roots": ["{project}/.agents/skills", "{project}/.agent/skills", "{home}/.gemini/config/skills", "{home}/.gemini/antigravity-cli/skills", "{home}/.gemini/antigravity-cli/plugins/*/skills", "{home}/.gemini/antigravity/skills"],
+      "rules": [{"path": "{home}/.gemini/GEMINI.md", "load": "candidate"}, {"path": "{project}/.agent/rules/*.md", "load": "candidate"}, {"path": "{home}/.gemini/antigravity/global_rules.md", "load": "candidate"}],
+      "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools"],
+      "isolation": null,
+      "source": "https://antigravity.google/docs/skills"
+    },
+    "hermes": {
+      "status": "documented local root; shared/project roots depend on Hermes configuration",
+      "skill_roots": ["{home}/.hermes/skills", "{home}/.agents/skills", "{project}/.hermes/skills"],
+      "rules": [{"path": "{project}/AGENTS.md", "load": "candidate"}, {"path": "{home}/.hermes/AGENTS.md", "load": "candidate"}],
+      "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools"],
+      "isolation": null,
+      "source": "https://hermes-agent.nousresearch.com/docs/user-guide/features/skills/"
+    },
+    "pi": {
+      "status": "documented universal roots; native roots and package resources are configurable",
+      "skill_roots": ["{home}/.agents/skills", "{project}/.agents/skills", "{home}/.pi/agent/skills", "{project}/.pi/skills"],
+      "rules": [{"path": "{project}/AGENTS.md", "load": "candidate"}, {"path": "{home}/.pi/agent/AGENTS.md", "load": "candidate"}],
+      "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools", "disable-model-invocation"],
+      "isolation": null,
+      "source": "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md"
+    },
+    "opencode": {
+      "status": "documented; custom config and nested ancestor paths need additional roots",
+      "skill_roots": ["{home}/.agents/skills", "{project}/.agents/skills", "{home}/.claude/skills", "{project}/.claude/skills", "{xdg_config_home}/opencode/skills", "{project}/.opencode/skills"],
+      "rules": [{"path": "{project}/AGENTS.md", "load": "always"}, {"path": "{xdg_config_home}/opencode/AGENTS.md", "load": "always"}],
+      "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools"],
+      "isolation": null,
+      "source": "https://opencode.ai/docs/skills/"
+    },
+    "muse": {
+      "status": "manual-cloud (user identified muse.ai); no local discovery assumed",
+      "skill_roots": [],
+      "rules": [],
+      "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools"],
+      "isolation": null,
+      "source": "https://muse.ai"
+    }
+  },
+  "manual_targets": ["claude-chat", "chatgpt", "grok", "deepseek", "muse"]
+}
