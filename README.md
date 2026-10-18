@@ -44,6 +44,11 @@ SDQS is a configurable structural heuristic, not measured task success.
 TF-IDF highlights lexical overlap, not model routing accuracy. Token counts use
 a documented UTF-8 byte proxy. Injection scans cannot establish trust.
 Filesystem exposure does not prove a harness loaded every copy into its prompt.
+The Codex audit includes the locally observed `.system` built-in directory;
+cached or built-in files may still be absent from an active session catalog.
+The linter distinguishes explicit resource dependencies from unverified prose
+mentions. Its lexical trigger tests abstain on weak evidence using configurable
+similarity and shared-term floors; this is still a routing proxy.
 Cold storage changes future discovery; it cannot remove content already read
 into a conversation. See [the rubric](references/eval-rubric.md) and
 [maintenance playbooks](references/healing-playbooks.md) for verification boundaries.

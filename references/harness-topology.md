@@ -17,7 +17,7 @@ script execution support, account availability or instruction semantics.
 | Profile | Default skill roots (home `~`; project relative) | Rule exposure / isolation |
 | --- | --- | --- |
 | Claude Code | `~/.claude/skills`, `.claude/skills`, candidate plugin cache skill folders | `CLAUDE.md` eager; `.claude/rules` may be conditional. Verified skill isolation: `context: fork`; optional `agent` selects a subagent type. |
-| Codex | `~/.agents/skills`, `.agents/skills`, `/etc/codex/skills`; legacy `~/.codex/skills` and plugin caches audited as candidates | `AGENTS.md`/override precedence depends on scope. No portable per-skill isolation frontmatter. |
+| Codex | `~/.agents/skills`, `.agents/skills`, `/etc/codex/skills`; legacy `~/.codex/skills`, observed built-ins in `~/.codex/skills/.system` and plugin caches audited as candidates | `AGENTS.md`/override precedence depends on scope. No portable per-skill isolation frontmatter. |
 | Cursor | `.agents/skills`, `.cursor/skills`, `.claude/skills`, `.codex/skills` and home equivalents | `.cursor/rules/*.mdc`: only `alwaysApply: true` is classified always; other rules are conditional. `paths` scopes skills. |
 | Devin | `.agents/skills`, `.devin/skills`, `.github/skills`, `.claude/skills`, `.cognition/skills`, `.windsurf/skills` | Repository roots are documented; local CLI/global extras need verification. `triggers: ["user"]` disables automatic invocation. |
 | Gemini CLI | `~/.agents/skills`, `~/.gemini/skills`, `.agents/skills`, `.gemini/skills` | `GEMINI.md` eager. `.agents` wins within a tier; workspace skills override user skills. No mapped skill isolation flag. |
@@ -30,6 +30,10 @@ script execution support, account availability or instruction semantics.
 The machine-readable map is in `config.default.json`. Discovery precedence is
 not simulated. An alias/duplicate finding means repeated filesystem exposure,
 not proof of repeated prompt injection. Some harnesses shadow or replace names.
+The explicit Codex `.system` root comes from local observation on 2026-10-18;
+normal recursive walking still skips other hidden directories. A plugin cache
+or built-in file can exist without appearing in the current session's skill
+catalog. Compare a supplied session catalog separately when it is available.
 The scanner walks session ancestors to the nearest Git worktree root. It does
 not expand arbitrary Markdown imports or inspect every child project automatically;
 scan the session directory and add relevant roots.

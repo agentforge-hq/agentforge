@@ -47,7 +47,13 @@ It reads literal `add_argument()` option strings. It pools flags across
 subcommands and cannot establish that a flag is valid for a particular command,
 that a positional argument is correct, or that the script works. Dynamic
 argument declarations are marked for manual verification. It reads linked
-Markdown references one level deep. It supports common plain/quoted strings,
+Markdown references one level deep. A dependency is an explicit local Markdown
+link outside a code fence, a direct instruction such as `Read` followed by an
+inline resource path, or a shell script invocation. Missing dependencies remain
+errors. Other resource mentions, including illustrative paths and generated
+output paths, are retained in `unverified_references` without a score deduction.
+Review these when a dependency is expressed indirectly; this is not a full
+Markdown or natural-language parser. It supports common plain/quoted strings,
 folded/literal YAML scalars and preserves nested YAML blocks opaquely. It is not
 a general YAML parser. Anchors, tags and flow values in routing scalars require
 manual review or rewriting as simple strings. This limitation is deliberate to
@@ -75,9 +81,20 @@ ambiguous requests. Example (not an LLM judge):
 python3.11 scripts/af_linter.py --root /path/to/skills --trigger-tests /path/to/cases.json
 ```
 
-A case passes when a unique, positive-scoring top lexical match is in `expected`;
-an empty expected list requires no positive match. Ties are ambiguous. Compare
-before and after reports with the same cases and corpus. Then test actual
+A case passes when a unique eligible top lexical match is in `expected`;
+an empty expected list requires abstention. Query normalization includes words
+absent from the skill descriptions so incidental matches are not inflated.
+The default `routing_tests` config requires cosine at least `0.1` and two
+distinct shared terms. These are configurable heuristics, not calibrated
+confidence levels. A one-word request abstains by default; rankings still show
+its lexical evidence. Equal top eligible scores across names are ambiguous.
+For example, an overlay can set:
+
+```json
+{"routing_tests": {"min_cosine": 0.2, "min_shared_terms": 2}}
+```
+
+Compare before and after reports with the same cases and corpus. Then test actual
 harness selection in fresh sessions, logging false activations, missed
 activations and task completion. Do not claim model routing improved based only
 on the lexical proxy.
