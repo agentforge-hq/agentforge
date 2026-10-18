@@ -59,7 +59,9 @@ python3.11 scripts/af_sync.py restore --transaction TRANSACTION_ID
 Preview before adding `--apply`. Deduplication requires equal declared names
 and full tree fingerprints, including script bytes, executable bits and symlink
 targets. Fingerprints exclude `.git`, `__pycache__`, `.pytest_cache`, `.ruff_cache` and
-`.DS_Store`; cold moves still preserve them. Distinct trees containing symlinks
+`.DS_Store`; cold moves still preserve them. Differing executable permissions
+remain divergent even when `SKILL.md` is identical. Inspect the difference before
+concluding that instructions drifted. Distinct trees containing symlinks
 need manual dependency review; top-level aliases to the same tree are supported.
 It does not merge divergent versions or add new symlinks. Keep only
 the root needed for the target harness; removing a duplicate from a native root

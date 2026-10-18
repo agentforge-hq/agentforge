@@ -26,6 +26,7 @@ from af_scanner import (
 
 STOPWORDS = set('a an and are as at be by for from in is it of on or that the this to use when with do not'.split())
 PORTABLE_FIELDS = {'name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'}
+LOCAL_PATH = r'(?:scripts|references|assets)/[\w./-]+\.[A-Za-z0-9]+'
 
 
 def words(text: str) -> list[str]:
@@ -49,7 +50,46 @@ def cosine(left: dict[str, float], right: dict[str, float]) -> float:
 
 
 def local_references(text: str) -> list[str]:
-    return sorted(set(re.findall(r'(?<![\w/])((?:scripts|references|assets)/[\w./-]+\.[A-Za-z0-9]+)', text)))
+    """All path mentions, including examples; useful for drift triage, not dependency validation."""
+    return sorted(set(re.findall(r'(?<![\w/])(' + LOCAL_PATH + r')', text)))
+
+
+def document_lines(text: str) -> list[tuple[int, str, str | None]]:
+    """Keep fence language so illustrative Markdown/Python is not treated as executable guidance."""
+    result = []
+    fence = ''
+    language = None
+    for number, line in enumerate(text.splitlines(), 1):
+        marker = re.match(r'^\s{0,3}(`{3,}|~{3,})(.*)$', line)
+        if marker:
+            delimiter, info = marker.groups()
+            if not fence:
+                fence = delimiter
+                language = info.strip().lower().split()[0] if info.strip() else ''
+                continue
+            if delimiter[0] == fence[0] and len(delimiter) >= len(fence) and not info.strip():
+                fence, language = '', None
+                continue
+        result.append((number, line, language))
+    return result
+
+
+def required_references(text: str) -> set[str]:
+    """Require actual links, direct read instructions and shell invocations; retain other mentions for review."""
+    required = {script for script, _, _ in script_commands(text)}
+    for _, line, language in document_lines(text):
+        if language is not None:
+            continue
+        required.update(re.findall(r'\[[^\]]*\]\(\s*<?(?:\./)?(' + LOCAL_PATH + r')(?:#[^\s)>]*)?>?\s*\)', line))
+        instruction = re.match(
+            r'^\s*(?:(?:[-*+]|\d+[.)])\s+)?(?:read|consult|see|follow|load|review)\s+'
+            r'(?:(?:the|this|a|an)\s+)?`(?:\./)?(' + LOCAL_PATH + r')`',
+            line,
+            re.I,
+        )
+        if instruction:
+            required.add(instruction.group(1))
+    return required
 
 
 def argparse_flags(path: Path) -> tuple[set[str], bool, list[dict[str, Any]]]:
@@ -79,26 +119,49 @@ def argparse_flags(path: Path) -> tuple[set[str], bool, list[dict[str, Any]]]:
     return flags, dynamic, declarations
 
 
-def command_flags(text: str) -> list[tuple[str, str, int]]:
-    """Read shell-like lines containing a local Python script, never execute them."""
+def script_commands(text: str) -> list[tuple[str, list[str], int]]:
+    """Read shell-like script invocations without executing or importing inspected code."""
     found = []
     joined = text.replace('\\\n', ' ')
-    for line_number, line in enumerate(joined.splitlines(), 1):
-        if 'scripts/' not in line or '.py' not in line:
+    for line_number, line, language in document_lines(joined):
+        if 'scripts/' not in line or language not in {None, '', 'sh', 'bash', 'shell', 'console'}:
+            continue
+        if re.match(r'^\s*(?:[-*+]\s+)?examples?\s*:', line, re.I):
             continue
         try:
             tokens = shlex.split(line.strip().strip('`'))
         except ValueError:
             continue
         for index, token in enumerate(tokens):
-            if not re.fullmatch(r'(?:\./)?scripts/[\w/-]+\.py', token):
+            token = token.strip('`')
+            if not re.fullmatch(r'(?:\./)?scripts/[\w./-]+\.[A-Za-z0-9]+', token):
                 continue
+            if index:
+                prefixes = [t.strip('`') for t in tokens[:index]]
+                invocation = any(
+                    re.fullmatch(r'(?:python(?:\d+(?:\.\d+)*)?|node|bash|sh|run|execute|invoke)', word, re.I)
+                    and all(option.startswith('-') for option in prefixes[position + 1 :])
+                    for position, word in enumerate(prefixes)
+                )
+                if not invocation:
+                    continue
+            options = []
             for option in tokens[index + 1 :]:
                 if option in {';', '&&', '||', '|', '>', '>>', '#'}:
                     break
                 if re.match(r'^--?[a-zA-Z]', option):
-                    found.append((token.removeprefix('./'), option.split('=', 1)[0].rstrip('`.,'), line_number))
+                    options.append(option.split('=', 1)[0].rstrip('`.,'))
+            found.append((token.removeprefix('./'), options, line_number))
     return found
+
+
+def command_flags(text: str) -> list[tuple[str, str, int]]:
+    return [
+        (script, option, line)
+        for script, options, line in script_commands(text)
+        if script.endswith('.py')
+        for option in options
+    ]
 
 
 def lint_skill(root: Path, config: dict[str, Any]) -> dict[str, Any]:
@@ -153,7 +216,9 @@ def lint_skill(root: Path, config: dict[str, Any]) -> dict[str, Any]:
     if prune:
         issue('repeated-instructions', f'{len(prune)} duplicate instruction lines; review deletion candidates')
     documents = {'SKILL.md': text}
-    for relative in local_references(text):
+    dependencies = required_references(text)
+    unverified_references = sorted(set(local_references(text)) - dependencies)
+    for relative in sorted(dependencies):
         target = (root / relative).resolve()
         if not target.is_relative_to(root):
             issue('escaping-reference', f'Reference escapes skill: {relative}', 'error')
@@ -216,6 +281,7 @@ def lint_skill(root: Path, config: dict[str, Any]) -> dict[str, Any]:
         'body_tokens_estimate': body_tokens,
         'issues': issues,
         'prune_candidates': prune,
+        'unverified_references': unverified_references,
         'scripts': scripts,
         'limits': 'Heuristic SDQS and lexical routing; AST flags are pooled across subcommands, '
         'not execution validation',
@@ -223,8 +289,18 @@ def lint_skill(root: Path, config: dict[str, Any]) -> dict[str, Any]:
 
 
 def routing_report(
-    skills: list[dict[str, Any]], threshold: float, cases: list[dict[str, Any]] | None = None, full_matrix: bool = False
+    skills: list[dict[str, Any]],
+    threshold: float,
+    cases: list[dict[str, Any]] | None = None,
+    full_matrix: bool = False,
+    *,
+    min_cosine: float = 0.1,
+    min_shared_terms: int = 2,
 ) -> dict[str, Any]:
+    if not isinstance(min_cosine, (int, float)) or not 0 <= min_cosine <= 1:
+        raise ValueError('Routing test min_cosine must be 0..1')
+    if isinstance(min_shared_terms, bool) or not isinstance(min_shared_terms, int) or min_shared_terms < 1:
+        raise ValueError('Routing test min_shared_terms must be a positive integer')
     descriptions = [s['description'] for s in skills]
     matrix, idf = vectors(descriptions)
     collisions = []
@@ -243,14 +319,22 @@ def routing_report(
     tests = []
     for case in cases or []:
         counts = collections.Counter(words(case['prompt']))
-        query = {w: (1 + math.log(n)) * idf[w] for w, n in counts.items() if w in idf}
+        # Unseen words still contribute to the query norm; dropping them inflates incidental matches.
+        unseen_idf = math.log(1 + len(skills)) + 1
+        query = {w: (1 + math.log(n)) * idf.get(w, unseen_idf) for w, n in counts.items()}
         norm = math.sqrt(sum(v * v for v in query.values())) or 1
         query = {w: v / norm for w, v in query.items()}
         ranked = sorted(
-            [(cosine(v, query), str(s['name'])) for v, s in zip(matrix, skills)], key=lambda p: (-p[0], p[1])
+            [(cosine(v, query), str(s['name']), len(v.keys() & query.keys())) for v, s in zip(matrix, skills)],
+            key=lambda p: (-p[0], p[1]),
         )
-        # Equal positive top scores are ambiguous; zero means no lexical evidence.
-        winners = sorted({name for score, name in ranked if score > 0 and abs(score - ranked[0][0]) < 1e-10})
+        eligible = [
+            (score, name)
+            for score, name, shared in ranked
+            if score > 0 and score >= min_cosine and shared >= min_shared_terms
+        ]
+        # Abstain on weak evidence; equal top eligible scores across names remain ambiguous.
+        winners = sorted({name for score, name in eligible if abs(score - eligible[0][0]) < 1e-10})
         expected = case.get('expected', [])
         expected = [expected] if isinstance(expected, str) else expected
         passed = (len(winners) == 1 and winners[0] in expected) if expected else not winners
@@ -260,12 +344,16 @@ def routing_report(
                 'expected': expected,
                 'winners': winners,
                 'passed': passed,
-                'ranking': [{'name': name, 'score': round(score, 4)} for score, name in ranked[:3]],
+                'ranking': [
+                    {'name': name, 'score': round(score, 4), 'shared_terms': shared}
+                    for score, name, shared in ranked[:3]
+                ],
             }
         )
     result = {
         'method': 'TF-IDF cosine; lexical proxy, not an LLM trigger evaluation',
         'threshold': threshold,
+        'abstention': {'min_cosine': min_cosine, 'min_shared_terms': min_shared_terms},
         'collisions': sorted(collisions, key=lambda c: -c['cosine']),
         'trigger_tests': tests,
     }
@@ -316,7 +404,7 @@ def main() -> int:
             not isinstance(c, dict) or not isinstance(c.get('prompt'), str) for c in cases
         ):
             raise ValueError('Trigger tests must be a JSON list containing prompt strings')
-    routing = routing_report(skills, threshold, cases, args.full_matrix)
+    routing = routing_report(skills, threshold, cases, args.full_matrix, **config.get('routing_tests', {}))
     emit({'skills': skills, 'routing': routing, 'errors': errors})
     return int(
         bool(errors)

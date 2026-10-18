@@ -168,6 +168,20 @@ class AgentforgeTests(unittest.TestCase):
         self.assertEqual(summary['always_rule_tokens_estimate'], scanner.estimated_tokens('override'))
         self.assertEqual(summary['conditional_rule_tokens_estimate'], 0)
 
+    def test_codex_inventory_includes_builtins_without_scanning_other_hidden_dirs(self) -> None:
+        codex_home = self.root / '.codex'
+        builtin = self.skill('.codex/skills/.system/builtin', name='builtin')
+        self.skill('.codex/skills/.unrelated/hidden', name='hidden')
+        self.skill('.codex/skills/ordinary', name='ordinary')
+        self.config['harnesses'] = {'codex': self.config['harnesses']['codex']}
+        with patch.dict(os.environ, {'CODEX_HOME': str(codex_home)}), patch(
+            'af_scanner.Path.home', return_value=self.root
+        ):
+            result = scanner.scan(self.config, self.root)
+        self.assertFalse(result['errors'])
+        self.assertEqual({s['name'] for s in result['skills']}, {'builtin', 'ordinary'})
+        self.assertEqual(sum(s['path'] == str(builtin / 'SKILL.md') for s in result['skills']), 1)
+
     def test_state_rejected_even_when_scan_root_does_not_exist(self) -> None:
         self.config['harnesses'] = {'test': {'skill_roots': ['{project}/.agents/skills'], 'rules': []}}
         with self.assertRaises(ValueError):
@@ -193,6 +207,37 @@ class AgentforgeTests(unittest.TestCase):
         self.assertIn('python-syntax', codes)
         self.assertIn('missing-reference', codes)
 
+    def test_linter_distinguishes_dependencies_from_examples_and_generated_outputs(self) -> None:
+        skill = self.skill(
+            'example',
+            body='Examples: `assets/logo.png`, `scripts/rotate_pdf.py`.\n'
+            'Verify the generated template contains `assets/preview.png`.\n'
+            '```markdown\nRead [an example](references/example.md).\n```\n'
+            'Read [the real guide](references/required.md).\nVerify output.\n',
+        )
+        issues = linter.lint_skill(skill, self.config)['issues']
+        missing = [i['message'] for i in issues if i['code'] == 'missing-reference']
+        self.assertEqual(missing, ['Missing file: references/required.md'])
+        self.assertIn('assets/preview.png', linter.lint_skill(skill, self.config)['unverified_references'])
+
+    def test_linter_still_requires_executable_command_paths_and_checks_flags(self) -> None:
+        skill = self.skill(
+            'example',
+            body='```sh\npython3.11 scripts/missing.py --help\n```\n'
+            '```sh\npython3.11 -S scripts/run.py --wrong\n```\nVerify output.\n',
+        )
+        (skill / 'scripts').mkdir()
+        (skill / 'scripts/run.py').write_text('p.add_argument("--right")')
+        issues = linter.lint_skill(skill, self.config)['issues']
+        self.assertTrue(any(i['code'] == 'missing-reference' and 'scripts/missing.py' in i['message'] for i in issues))
+        self.assertTrue(any(i['code'] == 'script-flag' and '--wrong' in i['message'] for i in issues))
+
+    def test_linter_does_not_follow_an_escaping_link(self) -> None:
+        skill = self.skill('example', body='Read [the guide](references/../../outside.md). Verify output.')
+        (self.root / 'outside.md').write_text('Do not read this external file.')
+        issues = linter.lint_skill(skill, self.config)['issues']
+        self.assertTrue(any(i['code'] == 'escaping-reference' for i in issues))
+
     def test_linter_marks_dynamic_options_unverified(self) -> None:
         skill = self.skill('example', body='Run `python scripts/run.py --dynamic`. Verify output.')
         (skill / 'scripts').mkdir()
@@ -217,6 +262,54 @@ class AgentforgeTests(unittest.TestCase):
             [{'prompt': 'document tables', 'expected': ['docs']}, {'prompt': 'forecast weather', 'expected': []}],
         )
         self.assertTrue(all(c['passed'] for c in result['trigger_tests']))
+
+    def test_routing_abstains_when_only_incidental_words_overlap(self) -> None:
+        skills = [
+            {'name': 'meetings', 'description': 'Turn notes into meeting agendas', 'path': 'meetings'},
+            {'name': 'visuals', 'description': 'Show what changes across scenarios', 'path': 'visuals'},
+        ]
+        result = linter.routing_report(
+            skills,
+            0.55,
+            [
+                {'prompt': 'Translate this sentence into French.', 'expected': []},
+                {'prompt': 'What is 17 multiplied by 23?', 'expected': []},
+                {'prompt': 'Prepare meeting agendas from notes.', 'expected': ['meetings']},
+            ],
+        )
+        self.assertTrue(all(c['passed'] for c in result['trigger_tests']))
+
+    def test_routing_unknown_words_reduce_evidence_instead_of_disappearing(self) -> None:
+        skills = [{'name': 'docs', 'description': 'Extract document tables', 'path': 'docs'}]
+        result = linter.routing_report(
+            skills,
+            0.55,
+            [
+                {'prompt': 'document tables', 'expected': ['docs']},
+                {'prompt': 'document tables volcano guitar nebula penguin bicycle', 'expected': []},
+            ],
+            min_cosine=0.5,
+        )
+        self.assertTrue(all(c['passed'] for c in result['trigger_tests']))
+
+    def test_routing_abstention_controls_are_validated(self) -> None:
+        for minimum in (-0.1, 1.1, float('nan')):
+            with self.assertRaises(ValueError):
+                linter.routing_report([], 0.55, min_cosine=minimum)
+        for minimum in (0, -1, 1.5, True):
+            with self.assertRaises(ValueError):
+                linter.routing_report([], 0.55, min_shared_terms=minimum)
+
+    def test_routing_can_report_single_term_evidence_without_treating_it_as_a_match(self) -> None:
+        skills = [{'name': 'docs', 'description': 'Extract document tables', 'path': 'docs'}]
+        cases = [{'prompt': 'document', 'expected': []}]
+        result = linter.routing_report(skills, 0.55, cases)
+        self.assertTrue(result['trigger_tests'][0]['passed'])
+        self.assertGreater(result['trigger_tests'][0]['ranking'][0]['score'], 0)
+        opted_in = linter.routing_report(
+            skills, 0.55, [{'prompt': 'document', 'expected': ['docs']}], min_shared_terms=1
+        )
+        self.assertTrue(opted_in['trigger_tests'][0]['passed'])
 
     def test_full_collision_matrix_includes_all_pairs(self) -> None:
         skills = [

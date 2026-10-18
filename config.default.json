@@ -5,6 +5,7 @@
   "limits": {"file_bytes": 1048576, "hash_file_bytes": 134217728, "tree_bytes": 268435456, "extract_bytes": 20971520, "tree_files": 5000, "scan_dirs": 10000, "download_bytes": 26214400},
   "sdqs_weights": {"structure": 20, "routing": 20, "economy": 20, "execution": 20, "maintenance": 10, "safety": 10},
   "collision_threshold": 0.55,
+  "routing_tests": {"min_cosine": 0.1, "min_shared_terms": 2},
   "harnesses": {
     "claude-code": {
       "status": "documented; plugin activation is not inferred",
@@ -16,7 +17,7 @@
     },
     "codex": {
       "status": "documented universal roots; legacy/cache paths are audit candidates",
-      "skill_roots": ["{home}/.agents/skills", "{project}/.agents/skills", "/etc/codex/skills", "{codex_home}/skills", "{codex_home}/plugins/cache/*/*/skills", "{codex_home}/plugins/cache/*/*/*/skills"],
+      "skill_roots": ["{home}/.agents/skills", "{project}/.agents/skills", "/etc/codex/skills", "{codex_home}/skills", "{codex_home}/skills/.system", "{codex_home}/plugins/cache/*/*/skills", "{codex_home}/plugins/cache/*/*/*/skills"],
       "rules": [{"path": "{codex_home}/AGENTS.md", "load": "always"}, {"path": "{codex_home}/AGENTS.override.md", "load": "candidate"}, {"path": "{project}/AGENTS.md", "load": "always"}, {"path": "{project}/AGENTS.override.md", "load": "candidate"}],
       "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools"],
       "isolation": null,
