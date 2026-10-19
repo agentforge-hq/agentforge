@@ -210,3 +210,13 @@ func TestManagedLocationThroughSymlinkedParentStaysProtected(t *testing.T) {
 		t.Fatal("managed location moved its user-owned target", err)
 	}
 }
+
+func TestLintDoesNotSkipAnExistingInvalidSkillFile(t *testing.T) {
+	f := setup(t)
+	root := filepath.Join(f.root, "invalid")
+	must(t, os.MkdirAll(filepath.Join(root, "SKILL.md"), 0700))
+	code, result, stderr := runCLI(t, "lint", root, "--project", f.root)
+	if code != 1 || stderr != "" || len(result["errors"].([]any)) != 1 || len(result["skipped"].([]any)) != 0 {
+		t.Fatal(code, result, stderr)
+	}
+}

@@ -379,7 +379,7 @@ func Run(arguments []string, stdout, stderr io.Writer) int {
 			if management != "" {
 				managementByPath[path] = management
 			}
-			if isDir(path) && !isFile(filepath.Join(path, "SKILL.md")) {
+			if isDir(path) && !exists(filepath.Join(path, "SKILL.md")) {
 				children, errors := walkSkills(path, e.Config.Limits["scan_dirs"])
 				skipped = append(skipped, M{"path": path, "reason": "container without SKILL.md", "discovered_skills": len(children)})
 				for _, problem := range errors {
