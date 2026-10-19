@@ -182,6 +182,18 @@ func TestComparisonRejectsOversizedPackages(t *testing.T) {
 	reject(t, err)
 }
 
+func TestComparisonDoesNotSuggestArchivingRunningInstallation(t *testing.T) {
+	f := setup(t)
+	left := f.skill("left/example", "", "", "")
+	right := f.skill("right/example", "", "", "")
+	f.e.SkillDir = right
+	result, err := f.e.Compare(left, right, CompareOptions{})
+	must(t, err)
+	if result["kind"] != "identical" || result["cleanup_eligible"] != false {
+		t.Fatal(result)
+	}
+}
+
 func TestManagedLocationThroughSymlinkedParentStaysProtected(t *testing.T) {
 	f := setup(t)
 	source := f.skill("owned/example", "", "", "")

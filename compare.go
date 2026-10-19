@@ -327,6 +327,9 @@ func (e *Engine) Compare(canonical, copy string, options CompareOptions) (M, err
 	}
 	eligible := kind != "divergent" && managed == "" && managedReason(canonical) == "" &&
 		nameA == nameB && metadataValid(canonicalFM) && metadataValid(copyFM)
+	if e.SkillDir != "" && within(e.SkillDir, realB) {
+		eligible = false
+	}
 	if kind == "aliases" && !isLink(copy) {
 		eligible = false
 	}
