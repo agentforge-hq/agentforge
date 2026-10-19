@@ -32,8 +32,8 @@
       "source": "https://cursor.com/docs/skills"
     },
     "devin": {
-      "status": "audit candidates; CLI version and extra roots require local verification",
-      "skill_roots": ["{project}/.agents/skills", "{project}/.devin/skills", "{project}/.github/skills", "{project}/.claude/skills", "{project}/.cognition/skills", "{project}/.windsurf/skills", "{home}/.agents/skills", "{home}/.devin/skills"],
+      "status": "documented repository roots and CLI global root; discovery and invocation depend on surface/version",
+      "skill_roots": ["{project}/.agents/skills", "{project}/.devin/skills", "{project}/.github/skills", "{project}/.claude/skills", "{project}/.cognition/skills", "{project}/.windsurf/skills", "{home}/.agents/skills", "{home}/.devin/skills", "{devin_config_home}/skills"],
       "rules": [{"path": "{project}/AGENTS.md", "load": "candidate"}, {"path": "{project}/CLAUDE.md", "load": "candidate"}],
       "frontmatter": ["name", "description", "license", "compatibility", "metadata", "allowed-tools", "argument-hint", "triggers"],
       "isolation": null,

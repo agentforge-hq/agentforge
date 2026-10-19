@@ -19,7 +19,7 @@ script execution support, account availability or instruction semantics.
 | Claude Code | `~/.claude/skills`, `.claude/skills`, candidate plugin cache skill folders | `CLAUDE.md` eager; `.claude/rules` may be conditional. Verified skill isolation: `context: fork`; optional `agent` selects a subagent type. |
 | Codex | `~/.agents/skills`, `.agents/skills`, `/etc/codex/skills`; legacy `~/.codex/skills`, observed built-ins in `~/.codex/skills/.system` and plugin caches audited as candidates | `AGENTS.md`/override precedence depends on scope. No portable per-skill isolation frontmatter. |
 | Cursor | `.agents/skills`, `.cursor/skills`, `.claude/skills`, `.codex/skills` and home equivalents | `.cursor/rules/*.mdc`: only `alwaysApply: true` is classified always; other rules are conditional. `paths` scopes skills. |
-| Devin | `.agents/skills`, `.devin/skills`, `.github/skills`, `.claude/skills`, `.cognition/skills`, `.windsurf/skills` | Repository roots are documented; local CLI/global extras need verification. `triggers: ["user"]` disables automatic invocation. |
+| Devin | Repository roots: `.agents/skills`, `.devin/skills`, `.github/skills`, `.claude/skills`, `.cognition/skills`, `.windsurf/skills`. CLI global: `~/.config/devin/skills` on Linux/macOS, `%APPDATA%\devin\skills` on Windows. | Cloud and CLI have different invocation and permission behavior. `triggers: ["user"]` disables automatic invocation. Other local roots remain audit candidates. |
 | Gemini CLI | `~/.agents/skills`, `~/.gemini/skills`, `.agents/skills`, `.gemini/skills` | `GEMINI.md` eager. `.agents` wins within a tier; workspace skills override user skills. No mapped skill isolation flag. |
 | Antigravity | `.agents/skills`, legacy `.agent/skills`; App/IDE `~/.gemini/config/skills`, CLI `~/.gemini/antigravity-cli/skills`, CLI plugins; legacy `~/.gemini/antigravity/skills` | Rules and legacy global rules are candidates; surface/version matters. No mapped isolation flag. |
 | Hermes | `~/.hermes/skills`; shared `~/.agents/skills` and project roots are configuration-dependent candidates | External directories and project precedence are configurable. No mapped skill isolation flag. |
@@ -32,6 +32,11 @@ not simulated. Duplicate reports retain a name-level `kind`. Mixed sets also
 include `alias_groups` and `identical_groups` so an alias or identical subset
 remains visible within a divergent name. An alias/duplicate finding means repeated filesystem exposure,
 not proof of repeated prompt injection. Some harnesses shadow or replace names.
+For Devin CLI, `{devin_config_home}` resolves to `~/.config/devin` on Linux/macOS
+and `%APPDATA%\devin` on Windows, falling back to the standard home-relative
+roaming directory if `APPDATA` is unset. The profile also retains legacy and
+shared-root candidates. Scanning them does not establish that a particular
+Devin session indexed them.
 The explicit Codex `.system` root comes from local observation on 2026-10-18;
 normal recursive walking still skips other hidden directories. A plugin cache
 or built-in file can exist without appearing in the current session's skill
@@ -81,6 +86,7 @@ delegation documentation.
 - [Codex/local skill locations](https://learn.chatgpt.com/docs/build-skills)
 - [Cursor skills](https://cursor.com/docs/skills)
 - [Devin skills](https://docs.devin.ai/product-guides/skills)
+- [Devin CLI skill locations and semantics](https://docs.devin.ai/cli/extensibility/skills/creating-skills)
 - [Gemini CLI skills](https://geminicli.com/docs/cli/skills/)
 - [Antigravity skills](https://antigravity.google/docs/skills)
 - [Hermes skills](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills/)
