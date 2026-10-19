@@ -373,6 +373,13 @@ func TestScanMatchesIndependentPythonGolden(t *testing.T) {
 		}
 	}
 	actual := normalize(decoded(t, report)).(map[string]any)
+	// Additive management fields are new; retain the independently generated legacy projection.
+	for _, value := range actual["skills"].([]any) {
+		skill := value.(map[string]any)
+		delete(skill, "managed")
+		delete(skill, "managed_reason")
+		delete(skill, "cleanup_eligible")
+	}
 	sum := 0
 	for _, value := range actual["skills"].([]any) {
 		skill := value.(map[string]any)
@@ -508,6 +515,30 @@ func TestCLISyncAndInspectionRoutes(t *testing.T) {
 	}
 	code, result, stderr = runCLI(t, "sync", "export", "--skill", source, "--harness", "portable", "--destination", filepath.Join(f.root, "target", "example"), "--state-dir", state, "--project", f.root)
 	if code != 0 || stderr != "" || result["applied"] != false {
+		t.Fatal(code, result, stderr)
+	}
+}
+func TestLintContainerSkipsContainerAndChecksChildren(t *testing.T) {
+	f := setup(t)
+	skill := f.skill("synced/bucket/example", "", "", "")
+	container := filepath.Join(f.root, "synced")
+	code, result, stderr := runCLI(t, "lint", container, "--project", f.root)
+	if code != 0 || stderr != "" || len(result["skills"].([]any)) != 1 {
+		t.Fatal(code, result, stderr)
+	}
+	writeFile(t, filepath.Join(skill, "scripts", "broken.go"), "package main\nfunc broken(")
+	code, result, stderr = runCLI(t, "lint", container, "--project", f.root)
+	if code != 1 || stderr != "" || len(result["skills"].([]any)) != 1 {
+		t.Fatal(code, result, stderr)
+	}
+}
+
+func TestLintEmptyContainerIsReportedSkipped(t *testing.T) {
+	f := setup(t)
+	container := filepath.Join(f.root, "empty")
+	must(t, os.Mkdir(container, 0700))
+	code, result, stderr := runCLI(t, "lint", container, "--project", f.root)
+	if code != 0 || stderr != "" || len(result["skills"].([]any)) != 0 || len(result["skipped"].([]any)) != 1 {
 		t.Fatal(code, result, stderr)
 	}
 }

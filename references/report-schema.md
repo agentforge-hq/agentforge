@@ -39,6 +39,9 @@ in that mode do not establish that a harness has no eager rules.
 | `fingerprint_error` | string or null | Reason the fingerprint could not be verified |
 | `diagnostics` | string array | Frontmatter parsing problems |
 | `harnesses` | string array | Configured profiles exposing this path, not an observed active catalog |
+| `managed` | boolean | Path or resolved target is a plugin cache, built-in or Claude-synced package |
+| `managed_reason` | string | Manager classification; empty for user-owned paths |
+| `cleanup_eligible` | boolean | False for managed paths; other paths still require metadata, fingerprint and dependency checks |
 
 For example, read `skills[i].tokens_estimate` for the body estimate and
 `skills[i].description` for triage text. Root body size is a lazy-load estimate,
@@ -60,12 +63,40 @@ Mixed groups can also include `alias_groups` with `real_path` and `paths`,
 and `identical_groups` with `tree_sha256` and `paths`. These preserve subsets
 inside a name-level group.
 
+Divergent groups also include `comparison_reference`, `difference_summaries`
+and `comparisons_omitted`. The first discovered path is a diagnostic reference,
+not a canonical choice. Up to ten other copies are summarized. Each summary
+identifies differing relative paths and fields such as `bytes`,
+`executable_bits`, `symlink_target`, `presence` and `type`.
+
 `divergent` does not diagnose a broken or outdated skill. Different harness
 paths and frontmatter remain different packages even when generated from one
 version. Those differences can affect execution and permissions. Alias paths
 also do not establish that a harness deduplicates its index. See the
 [management playbook](healing-playbooks.md) for fingerprint exclusions and
 safe handling.
+
+## Explicit comparisons
+
+`agentforge compare --canonical PATH` discovers the declared-name group.
+Repeated `--copy` compares explicit paths instead. The result includes
+`canonical`, `canonical_managed`, `comparisons`, `cleanup_candidates`,
+`dedupe_preview_argv`, `errors` and `applied: false`.
+
+A comparison reports strict `kind`, both fingerprints, `byte_content_equal`,
+`content_relation` and bounded `differences`. The content relation is
+`same-bytes`, `content-differs` or, with normalization,
+`harness-path-variant`. Byte equality excludes executable-bit differences;
+strict fingerprints retain them. Symlinks are compared by their targets.
+
+`--normalize-harness-paths` replaces known self-root spellings in text only.
+It preserves frontmatter and does not normalize other skills' paths.
+`raw_lines` and `normalized_lines` count added and removed lines when within
+the work limit. `--show-lines` includes bounded changed lines, with truncation
+reported. Text inspection is limited to the configured per-file size and
+8 MiB per package. Fingerprints still cover files outside the text budget.
+Normalized equality is diagnostic and cannot make a divergent package eligible
+for deduplication. Managed packages are excluded from the preview candidates.
 
 ## Summary and rule entries
 

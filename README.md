@@ -42,6 +42,7 @@ For direct use, run these commands from this repository:
 
 ```sh
 ./scripts/agentforge audit --project /path/to/repo
+./scripts/agentforge compare --canonical /path/to/skill --copy /path/to/other-copy --normalize-harness-paths
 ./scripts/agentforge lint /path/to/skill --fail-under 80
 ./scripts/agentforge sync --help
 ./scripts/agentforge discover --help
@@ -76,6 +77,20 @@ One transaction ID restores the batch. Deduplication also accepts repeated
 `--duplicate` options with one `--canonical`. These commands preserve their
 fingerprint checks and do not select skills for you. See the
 [management playbook](references/healing-playbooks.md) for review and recovery.
+
+`compare` explains file bytes, executable bits, symlink targets, missing entries
+and changed frontmatter fields. With no `--copy`, it discovers the chosen
+canonical skill's name group; `--root` can narrow that discovery. Use
+`--show-lines` for bounded changed text. `--normalize-harness-paths` reports
+path-only variants and the remaining line changes without dropping frontmatter.
+Normalized matches never authorize deduplication.
+
+Audit and lint mark plugin caches, built-ins and Claude-synced copies as managed.
+Cold storage and deduplication refuse those packages, including aliases pointing
+to them. Lint preserves findings for upstream review and omits local pruning
+suggestions. Containers without `SKILL.md` are listed under `skipped` while their
+discovered skills are linted. The [lint code reference](references/lint-codes.md)
+explains every code and its actionability.
 
 ## What the numbers mean
 

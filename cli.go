@@ -43,6 +43,7 @@ func repeatOption(name, help string) optionSpec {
 
 var routes = map[string][]optionSpec{
 	"audit":            specs(repeatOption("root", "Use only these skill roots instead of configured roots and rules"), boolOption("fail-on-budget", "Exit 1 when a configured context budget is exceeded")),
+	"compare":          specs(valueOption("canonical", "Explicit skill to retain as the group reference"), repeatOption("copy", "Copy to compare; otherwise discover the canonical skill's name group"), repeatOption("root", "Custom roots for name-group discovery"), boolOption("normalize-harness-paths", "Normalize known self paths for diagnostics; never enables deduplication"), boolOption("show-lines", "Include bounded changed text lines")),
 	"lint":             specs(repeatOption("root", "Inventory these skill roots"), valueOption("collision-threshold", "TF-IDF collision threshold (0..1)"), boolOption("full-matrix", "Include all pairwise cosine values"), valueOption("trigger-tests", "Local JSON trigger cases"), optionSpec{Name: "fail-under", Default: "0", Help: "Structural score floor (0..100)"}),
 	"sync dedupe":      specs(valueOption("canonical", "Canonical skill to retain"), repeatOption("duplicate", "Identical copy to archive"), boolOption("apply", "Apply the previewed mutation")),
 	"sync cold":        specs(repeatOption("skill", "Skills to archive together in one transaction"), boolOption("apply", "Apply the previewed mutation")),
@@ -147,7 +148,7 @@ func extractGlobals(arguments []string) ([]string, parsedOptions, error) {
 func rootHelp(writer io.Writer) {
 	fmt.Fprintln(writer, "agentforge — local-first skill audit and maintenance (Go, standard library only)")
 	fmt.Fprintln(writer, "\nUsage: agentforge [global options] COMMAND [options]")
-	fmt.Fprintln(writer, "\nCommands:\n  audit (scan)         Inventory skills, duplicates and eager rules\n  lint [SKILL ...]     Structural scores, script flags and lexical routing cases\n  sync dedupe|cold|restore|export|promote\n  discover inspect|fetch|search\n  drift audit|distill (automate-me)")
+	fmt.Fprintln(writer, "\nCommands:\n  audit (scan)         Inventory skills, duplicates and eager rules\n  compare             Explain differences against an explicitly chosen canonical skill\n  lint [SKILL ...]     Structural scores, script flags and lexical routing cases\n  sync dedupe|cold|restore|export|promote\n  discover inspect|fetch|search\n  drift audit|distill (automate-me)")
 	fmt.Fprintln(writer, "\nManagement previews are read-only; --apply performs the explicit mutation.")
 	fmt.Fprintln(writer, "audit uses configured harness roots by default; lint without SKILL paths does the same.")
 	for _, definition := range globalOptions {
@@ -169,6 +170,8 @@ func commandHelp(writer io.Writer, route string) {
 	}
 	if route == "lint" {
 		fmt.Fprintln(writer, "Positional arguments: zero or more skill directories or SKILL.md files")
+		fmt.Fprintln(writer, "Containers without SKILL.md are reported in skipped; their discovered skills are linted.")
+		fmt.Fprintln(writer, "Issue meanings and actionability: references/lint-codes.md")
 	}
 	if route == "discover fetch" {
 		fmt.Fprintln(writer, "Positional argument: owner/repo[/path] or a public GitHub/skills.sh URL")
@@ -321,6 +324,15 @@ func Run(arguments []string, stdout, stderr io.Writer) int {
 				}
 			}
 		}
+	case "compare":
+		if err = require(options, "canonical"); err != nil {
+			return fail(err)
+		}
+		result, err = e.CompareGroup(options.value("canonical"), options.Values["copy"], options.Values["root"], project,
+			CompareOptions{NormalizeHarnessPaths: options.boolean("normalize-harness-paths"), ShowLines: options.boolean("show-lines")})
+		if err == nil && len(result["errors"].([]M)) > 0 {
+			code = 1
+		}
 	case "lint":
 		minimum, parseErr := asFloat(options.value("fail-under"))
 		if parseErr != nil {
@@ -348,17 +360,42 @@ func Run(arguments []string, stdout, stderr io.Writer) int {
 			}
 			problems = append(problems, inventory["errors"].([]M)...)
 			for _, skill := range inventory["skills"].([]M) {
-				paths = append(paths, filepath.Dir(str(skill["real_path"])))
+				paths = append(paths, filepath.Dir(str(skill["path"])))
 			}
 		}
 		resolved := []string{}
+		skipped := []M{}
+		managementByPath := map[string]string{}
 		for _, path := range paths {
 			if filepath.Base(path) == "SKILL.md" {
 				path = filepath.Dir(path)
 			}
+			management := managedReason(path)
 			path, err = realPath(path)
 			if err != nil {
 				problems = append(problems, M{"path": path, "error": err.Error()})
+				continue
+			}
+			if management != "" {
+				managementByPath[path] = management
+			}
+			if isDir(path) && !isFile(filepath.Join(path, "SKILL.md")) {
+				children, errors := walkSkills(path, e.Config.Limits["scan_dirs"])
+				skipped = append(skipped, M{"path": path, "reason": "container without SKILL.md", "discovered_skills": len(children)})
+				for _, problem := range errors {
+					problems = append(problems, M{"path": path, "error": problem})
+				}
+				for _, child := range children {
+					root, err := realPath(filepath.Dir(child))
+					if err != nil {
+						problems = append(problems, M{"path": child, "error": err.Error()})
+					} else {
+						resolved = append(resolved, root)
+						if reason := managedReason(child); reason != "" {
+							managementByPath[root] = reason
+						}
+					}
+				}
 				continue
 			}
 			resolved = append(resolved, path)
@@ -369,6 +406,11 @@ func Run(arguments []string, stdout, stderr io.Writer) int {
 			if lintErr != nil {
 				problems = append(problems, M{"path": path, "error": lintErr.Error()})
 				continue
+			}
+			if management := managementByPath[path]; management != "" {
+				skill["managed"], skill["managed_reason"], skill["cleanup_eligible"] = true, management, false
+				skill["prune_candidates"] = []M{}
+				annotateIssues(skill["issues"].([]M), true)
 			}
 			skills = append(skills, skill)
 			if skill["sdqs"].(float64) < minimum {
@@ -401,7 +443,7 @@ func Run(arguments []string, stdout, stderr io.Writer) int {
 		if len(problems) > 0 {
 			code = 1
 		}
-		result = M{"skills": skills, "routing": routing, "errors": problems}
+		result = M{"skills": skills, "routing": routing, "errors": problems, "skipped": skipped}
 	case "sync dedupe":
 		if err = require(options, "canonical", "duplicate"); err != nil {
 			return fail(err)

@@ -50,6 +50,25 @@ Validate a small repeated workflow before turning it into a real skill.
 
 ## Deduplication and cold storage
 
+Choose a canonical reference explicitly and inspect the group first:
+
+```sh
+./scripts/agentforge compare --canonical /path/to/canonical --copy /path/to/copy --normalize-harness-paths --show-lines
+```
+
+Without `--copy`, comparison discovers the canonical skill's name group using
+configured roots. Repeat `--root` for custom group discovery. The result marks
+eligible exact copies and provides `dedupe_preview_argv` without `--apply`.
+It never selects a canonical source or merges content on its own.
+
+Each comparison reports byte equality separately from the strict fingerprint.
+For example, identical files with differing executable bits remain distinct
+packages, with the differing file and bit masks listed. Known self paths can
+be normalized for a diagnostic view of remaining line changes. Frontmatter
+fields, symlink targets and executable bits are preserved in the comparison.
+This diagnostic does not establish equivalent behavior or enable deduplication.
+Changed lines are opt-in and bounded; oversized text has an explicit limit note.
+
 ```sh
 ./scripts/agentforge sync dedupe --canonical /path/to/canonical --duplicate /path/to/copy
 ./scripts/agentforge sync cold --skill /path/to/rare-skill
