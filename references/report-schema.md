@@ -39,9 +39,16 @@ in that mode do not establish that a harness has no eager rules.
 | `fingerprint_error` | string or null | Reason the fingerprint could not be verified |
 | `diagnostics` | string array | Frontmatter parsing problems |
 | `harnesses` | string array | Configured profiles exposing this path, not an observed active catalog |
-| `managed` | boolean | Path or resolved target is a plugin cache, built-in or Claude-synced package |
+| `managed` | boolean | Path or resolved target matches a recognized managed layout |
 | `managed_reason` | string | Manager classification; empty for user-owned paths |
 | `cleanup_eligible` | boolean | False for managed paths; other paths still require metadata, fingerprint and dependency checks |
+
+Recognized managed layouts contain `plugins/cache/`, `skills/.system/`, or the
+exact Claude subtree `.claude/skills/synced/`. Classification checks both the
+supplied path and resolved target, including symlinked parents. It is based on
+path conventions, not an ownership or writability test. Other synchronized or
+vendor-controlled locations, such as `synced-finance`, require operator review.
+`managed: false` does not certify that a package is user-owned.
 
 For example, read `skills[i].tokens_estimate` for the body estimate and
 `skills[i].description` for triage text. Root body size is a lazy-load estimate,

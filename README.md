@@ -85,7 +85,9 @@ canonical skill's name group; `--root` can narrow that discovery. Use
 path-only variants and the remaining line changes without dropping frontmatter.
 Normalized matches never authorize deduplication.
 
-Audit and lint mark plugin caches, built-ins and Claude-synced copies as managed.
+Audit and lint mark recognized plugin-cache, built-in and Claude
+`.claude/skills/synced/` paths as managed; see the
+[classification boundaries](references/report-schema.md).
 Cold storage and deduplication refuse those packages, including aliases pointing
 to them. Lint preserves findings for upstream review and omits local pruning
 suggestions. Containers without `SKILL.md` are listed under `skipped` while their
