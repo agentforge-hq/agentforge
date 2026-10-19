@@ -57,6 +57,26 @@ reviewed fingerprint. Cold moves have transaction journals and restore support.
 command. Reports use exit 1 for findings or failed gates and exit 2 for invalid
 input or operational failure.
 
+`audit` discovers configured home and project roots automatically. `--project`
+sets the workspace scope and its Git ancestors; home roots remain included.
+Use `audit --project "$HOME"` for home scope. Repeat `--root` for a custom
+skill-only inventory. This replaces the configured roots and skips eager-rule
+scanning. `coverage` shows the roots actually considered. The
+[report schema](references/report-schema.md) defines JSON fields, including
+`description`, `tokens_estimate` and `index_tokens_estimate`.
+
+Cold-store several explicitly selected skills in one transaction:
+
+```sh
+./scripts/agentforge sync cold --skill /path/one --skill /path/two
+# Review every item, then repeat the same command with --apply.
+```
+
+One transaction ID restores the batch. Deduplication also accepts repeated
+`--duplicate` options with one `--canonical`. These commands preserve their
+fingerprint checks and do not select skills for you. See the
+[management playbook](references/healing-playbooks.md) for review and recovery.
+
 ## What the numbers mean
 
 SDQS is a configurable structural heuristic, not measured task success.

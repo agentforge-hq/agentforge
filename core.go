@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -371,7 +372,15 @@ func (e *Engine) render(pattern, project string) string {
 	if xdg == "" {
 		xdg = filepath.Join(e.Home, ".config")
 	}
-	r := strings.NewReplacer("{home}", e.Home, "{project}", project, "{codex_home}", codex, "{xdg_config_home}", xdg)
+	devin := filepath.Join(e.Home, ".config", "devin")
+	if runtime.GOOS == "windows" {
+		appData := os.Getenv("APPDATA")
+		if appData == "" {
+			appData = filepath.Join(e.Home, "AppData", "Roaming")
+		}
+		devin = filepath.Join(appData, "devin")
+	}
+	r := strings.NewReplacer("{home}", e.Home, "{project}", project, "{codex_home}", codex, "{xdg_config_home}", xdg, "{devin_config_home}", devin)
 	result := filepath.FromSlash(r.Replace(pattern))
 	if strings.HasPrefix(result, "~"+string(filepath.Separator)) {
 		result = filepath.Join(e.Home, result[2:])

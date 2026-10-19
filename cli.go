@@ -42,10 +42,10 @@ func repeatOption(name, help string) optionSpec {
 }
 
 var routes = map[string][]optionSpec{
-	"audit":            specs(repeatOption("root", "Scan only these roots; repeatable"), boolOption("fail-on-budget", "Exit 1 when a configured context budget is exceeded")),
+	"audit":            specs(repeatOption("root", "Use only these skill roots instead of configured roots and rules"), boolOption("fail-on-budget", "Exit 1 when a configured context budget is exceeded")),
 	"lint":             specs(repeatOption("root", "Inventory these skill roots"), valueOption("collision-threshold", "TF-IDF collision threshold (0..1)"), boolOption("full-matrix", "Include all pairwise cosine values"), valueOption("trigger-tests", "Local JSON trigger cases"), optionSpec{Name: "fail-under", Default: "0", Help: "Structural score floor (0..100)"}),
 	"sync dedupe":      specs(valueOption("canonical", "Canonical skill to retain"), repeatOption("duplicate", "Identical copy to archive"), boolOption("apply", "Apply the previewed mutation")),
-	"sync cold":        specs(valueOption("skill", "Skill to archive"), boolOption("apply", "Apply the previewed mutation")),
+	"sync cold":        specs(repeatOption("skill", "Skills to archive together in one transaction"), boolOption("apply", "Apply the previewed mutation")),
 	"sync restore":     specs(valueOption("transaction", "32-character transaction ID"), boolOption("apply", "Apply the previewed restore")),
 	"sync export":      specs(valueOption("skill", "Source skill"), valueOption("harness", "Target harness or portable"), valueOption("destination", "Exact new directory, rule or ZIP path"), boolOption("isolate", "Claude Code context: fork"), boolOption("allow-lossy", "Acknowledge fields listed as dropped"), optionSpec{Name: "format", Default: "skill", Help: "skill or cursor-rule"}, boolOption("apply", "Apply the previewed export")),
 	"sync promote":     specs(valueOption("quarantine", "Reviewed quarantine directory"), valueOption("destination", "Exact new skill directory"), valueOption("review-sha256", "Fingerprint from inspection"), boolOption("accept-findings", "Acknowledge reviewed findings and unscanned files"), boolOption("apply", "Apply the reviewed promotion")),
@@ -149,6 +149,7 @@ func rootHelp(writer io.Writer) {
 	fmt.Fprintln(writer, "\nUsage: agentforge [global options] COMMAND [options]")
 	fmt.Fprintln(writer, "\nCommands:\n  audit (scan)         Inventory skills, duplicates and eager rules\n  lint [SKILL ...]     Structural scores, script flags and lexical routing cases\n  sync dedupe|cold|restore|export|promote\n  discover inspect|fetch|search\n  drift audit|distill (automate-me)")
 	fmt.Fprintln(writer, "\nManagement previews are read-only; --apply performs the explicit mutation.")
+	fmt.Fprintln(writer, "audit uses configured harness roots by default; lint without SKILL paths does the same.")
 	for _, definition := range globalOptions {
 		fmt.Fprintf(writer, "  --%-18s %s\n", definition.Name, definition.Help)
 	}
@@ -156,6 +157,16 @@ func rootHelp(writer io.Writer) {
 }
 func commandHelp(writer io.Writer, route string) {
 	fmt.Fprintf(writer, "Usage: agentforge %s [options]\n", route)
+	if route == "audit" || route == "lint" {
+		if route == "audit" {
+			fmt.Fprintln(writer, "Without --root, inventory configured harness roots automatically.")
+		} else {
+			fmt.Fprintln(writer, "Without SKILL paths, inventory configured roots; --root selects custom roots.")
+		}
+		fmt.Fprintln(writer, "--project sets workspace scope; home roots are included. Use --project \"$HOME\" for home scope.")
+		fmt.Fprintln(writer, "--root selects custom skill roots and skips configured eager-rule scanning.")
+		fmt.Fprintln(writer, "Audit JSON fields and estimate definitions: references/report-schema.md")
+	}
 	if route == "lint" {
 		fmt.Fprintln(writer, "Positional arguments: zero or more skill directories or SKILL.md files")
 	}
@@ -167,9 +178,19 @@ func commandHelp(writer io.Writer, route string) {
 		if definition.Default != "" {
 			suffix = " (default " + definition.Default + ")"
 		}
+		if definition.Repeat {
+			suffix += " (repeatable)"
+		}
 		fmt.Fprintf(writer, "  --%-20s %s%s\n", definition.Name, definition.Help, suffix)
 	}
 	fmt.Fprintln(writer, "  --help, -h             Show help")
+	if route == "sync cold" {
+		fmt.Fprintln(writer, "Example: agentforge sync cold --skill /path/one --skill /path/two")
+		fmt.Fprintln(writer, "Review the full items list, then repeat with --apply. One transaction restores the whole batch.")
+	}
+	if route == "sync dedupe" {
+		fmt.Fprintln(writer, "Example: agentforge sync dedupe --canonical /path/main --duplicate /path/copy1 --duplicate /path/copy2")
+	}
 }
 func require(options parsedOptions, names ...string) error {
 	for _, name := range names {
@@ -390,7 +411,7 @@ func Run(arguments []string, stdout, stderr io.Writer) int {
 		if err = require(options, "skill"); err != nil {
 			return fail(err)
 		}
-		result, err = e.Archive([]string{options.value("skill")}, state, options.boolean("apply"), "")
+		result, err = e.Archive(options.Values["skill"], state, options.boolean("apply"), "")
 	case "sync restore":
 		if err = require(options, "transaction"); err != nil {
 			return fail(err)

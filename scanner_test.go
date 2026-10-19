@@ -416,6 +416,75 @@ func TestCLIInventoryBudgetAndGlobalFlagPositions(t *testing.T) {
 		}
 	}
 }
+func TestDefaultInventoryIncludesDevinCLIGlobalRoot(t *testing.T) {
+	f := setup(t)
+	relative := ".config/devin/skills/example"
+	if runtime.GOOS == "windows" {
+		t.Setenv("APPDATA", filepath.Join(f.root, "roaming"))
+		relative = "roaming/devin/skills/example"
+	}
+	source := f.skill(relative, "", "", "")
+	f.e.Config.Harnesses = map[string]Profile{"devin": f.e.Config.Harnesses["devin"]}
+	result, err := f.e.Scan(f.root, nil)
+	must(t, err)
+	skills := result["skills"].([]M)
+	if len(skills) != 1 || skills[0]["path"] != filepath.Join(source, "SKILL.md") {
+		t.Fatal(result)
+	}
+	if str(skills[0]["description"]) == "" || integer(skills[0]["tokens_estimate"]) <= 0 ||
+		integer(skills[0]["index_tokens_estimate"]) <= 0 {
+		t.Fatal(skills[0])
+	}
+}
+
+func TestCLIBatchColdPreviewApplyRestore(t *testing.T) {
+	f := setup(t)
+	first := f.skill("first", "first", "", "")
+	second := f.skill("second", "second", "", "Verify the second output.\n")
+	originals := map[string]string{}
+	for _, path := range []string{first, second} {
+		digest, err := f.e.treeDigest(path)
+		must(t, err)
+		originals[path] = digest
+	}
+	state := filepath.Join(f.root, "state")
+	args := []string{"sync", "cold", "--skill", first, "--skill", second, "--state-dir", state, "--project", f.root}
+	code, result, stderr := runCLI(t, args...)
+	if code != 0 || stderr != "" || len(result["items"].([]any)) != 2 || result["applied"] != false ||
+		exists(state) || !exists(first) || !exists(second) {
+		t.Fatal(code, result, stderr)
+	}
+	code, result, stderr = runCLI(t, append(args, "--apply")...)
+	if code != 0 || stderr != "" || len(result["items"].([]any)) != 2 || exists(first) || exists(second) {
+		t.Fatal(code, result, stderr)
+	}
+	entries, err := os.ReadDir(filepath.Join(state, "transactions"))
+	must(t, err)
+	if len(entries) != 1 {
+		t.Fatal("batch did not produce one transaction")
+	}
+	code, result, stderr = runCLI(t, "sync", "restore", "--transaction", str(result["id"]), "--state-dir", state, "--project", f.root, "--apply")
+	if code != 0 || stderr != "" {
+		t.Fatal(code, result, stderr)
+	}
+	for path, original := range originals {
+		digest, err := f.e.treeDigest(path)
+		must(t, err)
+		if digest != original {
+			t.Fatalf("restore changed %s", path)
+		}
+	}
+}
+
+func TestCLIBatchColdRejectsInvalidMemberBeforeMovingAny(t *testing.T) {
+	f := setup(t)
+	first := f.skill("first", "first", "", "")
+	state := filepath.Join(f.root, "state")
+	code, _, stderr := runCLI(t, "sync", "cold", "--skill", filepath.Join(f.root, "missing"), "--skill", first, "--state-dir", state, "--project", f.root, "--apply")
+	if code != 2 || stderr == "" || !exists(first) || exists(state) {
+		t.Fatal(code, stderr, "invalid batch moved a valid member")
+	}
+}
 
 func TestCLISyncAndInspectionRoutes(t *testing.T) {
 	f := setup(t)

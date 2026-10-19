@@ -53,6 +53,7 @@ Validate a small repeated workflow before turning it into a real skill.
 ```sh
 ./scripts/agentforge sync dedupe --canonical /path/to/canonical --duplicate /path/to/copy
 ./scripts/agentforge sync cold --skill /path/to/rare-skill
+./scripts/agentforge sync cold --skill /path/to/one --skill /path/to/two
 ./scripts/agentforge sync restore --transaction TRANSACTION_ID
 ```
 
@@ -62,12 +63,22 @@ targets. Fingerprints exclude `.git`, `__pycache__`, `.pytest_cache` and `.ruff_
 directories; cold moves still preserve them. Portable exports also omit
 `.DS_Store` files. Differing executable permissions
 remain divergent even when `SKILL.md` is identical. Inspect the difference before
-concluding that instructions drifted. Distinct trees containing symlinks
+concluding that instructions drifted. Harness-specific paths and frontmatter
+also produce valid divergence, even at the same declared version. They can
+affect execution or permissions and are not normalized for deduplication.
+Distinct trees containing symlinks
 need manual dependency review; top-level aliases to the same tree are supported.
 It does not merge divergent versions or add new symlinks. Keep only
 the root needed for the target harness; removing a duplicate from a native root
 can affect harnesses that do not discover the canonical root. Decide from the
 topology and the user's intended harnesses before applying.
+
+Repeat `--skill` to cold-store a reviewed list in one transaction, or repeat
+`--duplicate` to deduplicate several copies against one canonical source.
+Review the complete `items` list before `--apply`. All inputs are validated
+before the first move; a move failure attempts rollback. Preview JSON is a
+report, not a saved executable plan. A later apply recomputes the selection's
+fingerprints, so review again if sources changed between commands.
 
 Cold storage lives outside discovery roots at `~/.local/share/agentforge` by
 default. Set `--state-dir` before the subcommand for another location. Moves
@@ -77,6 +88,12 @@ or stale lock needs inspection. Restore verifies fingerprints and refuses
 existing destinations. Never delete a conflicting destination to force restore.
 Retain the journal until the result is verified. No state retention/deletion
 policy is automated in v0.1.
+
+There is no history command in v0.1. Existing transaction manifests are at
+`<state-dir>/transactions/<id>/manifest.json`. Each manifest records the
+operation, item paths, fingerprints and status. Use `sync restore` without
+`--apply` to check a specific transaction's integrity and destinations before
+restoring it.
 
 ## Discover, quarantine and promote
 
