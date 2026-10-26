@@ -42,6 +42,7 @@ func repeatOption(name, help string) optionSpec {
 }
 
 var routes = map[string][]optionSpec{
+	"search":           specs(valueOption("query", "Task description to send to the skill catalog"), valueOption("harness", "Optional harness identifier"), valueOption("endpoint", "Explicit HTTPS search endpoint override"), optionSpec{Name: "limit", Default: "5", Help: "Maximum results (1..20)"}),
 	"audit":            specs(repeatOption("root", "Use only these skill roots instead of configured roots and rules"), boolOption("fail-on-budget", "Exit 1 when a configured context budget is exceeded")),
 	"compare":          specs(valueOption("canonical", "Explicit skill to retain as the group reference"), repeatOption("copy", "Copy to compare; otherwise discover the canonical skill's name group"), repeatOption("root", "Custom roots for name-group discovery"), boolOption("normalize-harness-paths", "Normalize known self paths for diagnostics; never enables deduplication"), boolOption("show-lines", "Include bounded changed text lines")),
 	"lint":             specs(repeatOption("root", "Inventory these skill roots"), valueOption("collision-threshold", "TF-IDF collision threshold (0..1)"), boolOption("full-matrix", "Include all pairwise cosine values"), valueOption("trigger-tests", "Local JSON trigger cases"), optionSpec{Name: "fail-under", Default: "0", Help: "Structural score floor (0..100)"}),
@@ -148,7 +149,7 @@ func extractGlobals(arguments []string) ([]string, parsedOptions, error) {
 func rootHelp(writer io.Writer) {
 	fmt.Fprintln(writer, "agentforge — local-first skill audit and maintenance (Go, standard library only)")
 	fmt.Fprintln(writer, "\nUsage: agentforge [global options] COMMAND [options]")
-	fmt.Fprintln(writer, "\nCommands:\n  audit (scan)         Inventory skills, duplicates and eager rules\n  compare             Explain differences against an explicitly chosen canonical skill\n  lint [SKILL ...]     Structural scores, script flags and lexical routing cases\n  sync dedupe|cold|restore|export|promote\n  discover inspect|fetch|search\n  drift audit|distill (automate-me)")
+	fmt.Fprintln(writer, "\nCommands:\n  search              Find useful skills from an ordinary task description\n  audit (scan)         Inventory skills, duplicates and eager rules\n  compare             Explain differences against an explicitly chosen canonical skill\n  lint [SKILL ...]     Structural scores, script flags and lexical routing cases\n  sync dedupe|cold|restore|export|promote\n  discover inspect|fetch|search\n  drift audit|distill (automate-me)")
 	fmt.Fprintln(writer, "\nManagement previews are read-only; --apply performs the explicit mutation.")
 	fmt.Fprintln(writer, "audit uses configured harness roots by default; lint without SKILL paths does the same.")
 	for _, definition := range globalOptions {
@@ -310,6 +311,15 @@ func Run(arguments []string, stdout, stderr io.Writer) int {
 	var result M
 	code := 0
 	switch route {
+	case "search":
+		if err = require(options, "query"); err != nil {
+			return fail(err)
+		}
+		limit, parseErr := strconv.Atoi(options.value("limit"))
+		if parseErr != nil {
+			return fail(errors.New("limit must be an integer"))
+		}
+		result, err = CloudSearch(options.value("query"), options.value("harness"), options.value("endpoint"), limit)
 	case "audit":
 		result, err = e.Scan(project, options.Values["root"])
 		if err == nil {
