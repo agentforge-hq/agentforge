@@ -1,6 +1,6 @@
 # AgentForge
 
-Keep agent skills useful as repositories, harnesses and working practices change.
+Discover useful capabilities from an ordinary task, and keep agent skills useful as working practices change.
 
 AgentForge v0.1 is a local skill backed by one Go executable. It inventories skill
 folders and eager rules, flags duplicate names, scores skill structure, compares
@@ -41,6 +41,7 @@ Ask a compatible agent to use `agentforge` to audit or maintain your skills.
 For direct use, run these commands from this repository:
 
 ```sh
+./scripts/agentforge search --query "Find the root cause of this bug" --harness codex --limit 3
 ./scripts/agentforge audit --project /path/to/repo
 ./scripts/agentforge compare --canonical /path/to/skill --copy /path/to/other-copy --normalize-harness-paths
 ./scripts/agentforge lint /path/to/skill --fail-under 80
@@ -109,7 +110,9 @@ Cold storage changes future discovery; it cannot remove content already read
 into a conversation. See [the rubric](references/eval-rubric.md) and
 [maintenance playbooks](references/healing-playbooks.md) for verification boundaries.
 
-This release does not include a registry, hosted service, GitHub App, autonomous
+The experimental `search` command connects to the [hosted discovery prototype](https://agentforge-five-sandy.vercel.app). It uploads only the explicit task query, harness identifier, and result limit. See [cloud-search.md](references/cloud-search.md). The local audit and maintenance commands continue to work offline.
+
+This release does not include a GitHub App, autonomous
 patching, full YAML parser, or a guarantee of complete compatibility with every
 agent. It implements the commands documented by each script's `--help`.
 
