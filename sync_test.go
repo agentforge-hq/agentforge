@@ -48,6 +48,29 @@ func TestArchivePreviewCreatesNoState(t *testing.T) {
 		t.Fatal(result)
 	}
 }
+func TestArchiveProtectsManagedCopiesAndAliases(t *testing.T) {
+	for _, relative := range []string{
+		".codex/plugins/cache/vendor/plugin/skills/example",
+		".codex/skills/.system/example",
+		".claude/skills/synced/bucket/example",
+	} {
+		t.Run(relative, func(t *testing.T) {
+			f := setup(t)
+			source := f.skill(relative, "", "", "")
+			state := filepath.Join(f.root, "state")
+			_, err := f.e.Archive([]string{source}, state, true, "")
+			if err == nil || !exists(source) || exists(state) {
+				t.Fatal("managed package was archived", err)
+			}
+			alias := filepath.Join(f.root, "alias")
+			link(t, source, alias)
+			_, err = f.e.Archive([]string{alias}, state, true, "")
+			if err == nil || !exists(alias) || !exists(source) || exists(state) {
+				t.Fatal("managed target was not protected through alias", err)
+			}
+		})
+	}
+}
 
 func TestManagedPathsCannotLoseBytesInJSONJournals(t *testing.T) {
 	_, err := checkedSkill("invalid-" + string([]byte{0xff}))

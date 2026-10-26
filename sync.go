@@ -130,9 +130,15 @@ func (e *Engine) Archive(paths []string, state string, apply bool, canonical str
 	prepared := []string{}
 	seen := map[string]bool{}
 	for _, path := range paths {
+		if reason := managedReason(path); reason != "" {
+			return nil, fmt.Errorf("cannot archive managed skill (%s): %s; use the harness or plugin manager", reason, path)
+		}
 		checked, err := checkedSkill(path)
 		if err != nil {
 			return nil, err
+		}
+		if reason := managedReason(checked); reason != "" {
+			return nil, fmt.Errorf("cannot archive managed skill (%s): %s; use the harness or plugin manager", reason, checked)
 		}
 		if seen[checked] {
 			return nil, errors.New("duplicate input paths")
@@ -147,9 +153,15 @@ func (e *Engine) Archive(paths []string, state string, apply bool, canonical str
 	}
 	canonicalHash, canonicalName, canonicalReal := "", "", ""
 	if canonical != "" {
+		if reason := managedReason(canonical); reason != "" {
+			return nil, fmt.Errorf("choose a user-owned canonical source; %s is managed (%s)", canonical, reason)
+		}
 		canonical, err = checkedSkill(canonical)
 		if err != nil {
 			return nil, err
+		}
+		if reason := managedReason(canonical); reason != "" {
+			return nil, fmt.Errorf("choose a user-owned canonical source; %s is managed (%s)", canonical, reason)
 		}
 		canonicalHash, err = e.treeDigest(canonical)
 		if err != nil {
@@ -192,7 +204,7 @@ func (e *Engine) Archive(paths []string, state string, apply bool, canonical str
 				return nil, err
 			}
 			if str(parseFrontmatter(content).Fields["name"]) != canonicalName || hash != canonicalHash {
-				return nil, fmt.Errorf("divergent skill; choose or merge it manually: %s", path)
+				return nil, fmt.Errorf("divergent skill; choose or merge it manually: %s; use agentforge compare with --canonical and --copy to inspect differences", path)
 			}
 			if resolved != canonicalReal {
 				if _, err = e.portableFiles(canonical, true); err != nil {

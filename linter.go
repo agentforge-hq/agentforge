@@ -391,6 +391,7 @@ func inspectGo(path, text string) (M, error) {
 }
 
 func (e *Engine) LintSkill(root string) (M, error) {
+	management := managedReason(root)
 	root, err := realPath(root)
 	if err != nil {
 		return nil, err
@@ -588,6 +589,7 @@ func (e *Engine) LintSkill(root string) (M, error) {
 	if regexp.MustCompile(`(?i)curl[^\n]*\|\s*(?:sh|bash)|ignore (?:all )?(?:previous|system) instructions`).MatchString(fm.Body) {
 		issue("unsafe-instruction", "Review instruction override or remote execution pattern", "error")
 	}
+	annotateIssues(issues, management != "")
 	penalties := map[string][]string{
 		"structure":   {"frontmatter", "name", "name-directory", "description", "compatibility"},
 		"routing":     {"positive-trigger", "vague-description", "description-budget"},
@@ -615,7 +617,12 @@ func (e *Engine) LintSkill(root string) (M, error) {
 		dimensions[dimension] = value
 		score += value
 	}
-	return M{"path": root, "name": name, "description": description, "sdqs": math.Round(score*100) / 100, "dimensions": dimensions, "body_tokens_estimate": tokens(fm.Body), "issues": issues, "prune_candidates": prune, "unverified_references": unverified, "scripts": scripts, "limits": "Heuristic SDQS and lexical routing. Go AST and Python literal flags are pooled across subcommands; inspected scripts are never executed. Full Python syntax is unverified."}, nil
+	if management != "" {
+		prune = []M{}
+	}
+	return M{"path": root, "name": name, "description": description, "sdqs": math.Round(score*100) / 100, "dimensions": dimensions, "body_tokens_estimate": tokens(fm.Body), "issues": issues, "prune_candidates": prune, "unverified_references": unverified, "scripts": scripts,
+		"managed": management != "", "managed_reason": management, "cleanup_eligible": management == "",
+		"limits": "Heuristic SDQS and lexical routing. Go AST and Python literal flags are pooled across subcommands; inspected scripts are never executed. Full Python syntax is unverified."}, nil
 }
 
 type TriggerCase struct {

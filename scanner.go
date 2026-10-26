@@ -203,7 +203,9 @@ func (e *Engine) skillRecord(path string, cache map[string]M) (M, error) {
 		}
 		cache[root] = record
 	}
-	return M{"path": path, "real_path": real, "name": name, "description": description, "tokens_estimate": tokens(fm.Body), "index_tokens_estimate": tokens(name + "\n" + description + "\n" + path), "tree_sha256": cache[root]["hash"], "fingerprint_error": cache[root]["error"], "diagnostics": fm.Problems, "harnesses": []string{}}, nil
+	reason := managedReason(path)
+	return M{"path": path, "real_path": real, "name": name, "description": description, "tokens_estimate": tokens(fm.Body), "index_tokens_estimate": tokens(name + "\n" + description + "\n" + path), "tree_sha256": cache[root]["hash"], "fingerprint_error": cache[root]["error"], "diagnostics": fm.Problems, "harnesses": []string{},
+		"managed": reason != "", "managed_reason": reason, "cleanup_eligible": reason == ""}, nil
 }
 
 func (e *Engine) Scan(project string, roots []string) (M, error) {
@@ -348,6 +350,22 @@ func (e *Engine) Scan(project string, roots []string) (M, error) {
 			kind = "identical"
 		}
 		group := M{"name": name, "kind": kind, "paths": paths, "harness_exposure": exposure}
+		if kind == "divergent" {
+			summaries := []M{}
+			reference := filepath.Dir(str(copies[0]["path"]))
+			for _, copy := range copies[1:min(len(copies), 11)] {
+				path := filepath.Dir(str(copy["path"]))
+				summary, err := e.Compare(reference, path, CompareOptions{SummaryOnly: true})
+				if err != nil {
+					summary = M{"copy": path, "comparison_error": err.Error()}
+					problems = append(problems, M{"path": path, "error": err.Error(), "stage": "comparison"})
+				}
+				summaries = append(summaries, summary)
+			}
+			group["difference_summaries"] = summaries
+			group["comparison_reference"] = reference
+			group["comparisons_omitted"] = max(0, len(copies)-11)
+		}
 		// Preserve relationships inside mixed sets without changing simple-pair reports.
 		if len(physical) > 1 {
 			aliases, identical := []M{}, []M{}
