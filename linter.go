@@ -391,6 +391,10 @@ func inspectGo(path, text string) (M, error) {
 }
 
 func (e *Engine) LintSkill(root string) (M, error) {
+	return e.lintSkill(root, filepath.Base(root))
+}
+
+func (e *Engine) lintSkill(root, directoryName string) (M, error) {
 	management := managedReason(root)
 	root, err := realPath(root)
 	if err != nil {
@@ -411,7 +415,7 @@ func (e *Engine) LintSkill(root string) (M, error) {
 	name, description := str(fm.Fields["name"]), str(fm.Fields["description"])
 	if !validName(name) {
 		issue("name", "Name must be lowercase kebab-case, 1-64 characters", "error")
-	} else if name != filepath.Base(root) {
+	} else if name != directoryName {
 		issue("name-directory", "Name must match its directory for portable installation", "error")
 	}
 	if len([]rune(description)) < 1 || len([]rune(description)) > 1024 {
