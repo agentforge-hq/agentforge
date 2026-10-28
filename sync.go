@@ -798,7 +798,7 @@ func (e *Engine) Promote(quarantine, destination, reviewed string, acceptFinding
 	if err != nil {
 		return nil, err
 	}
-	lint, err := e.LintSkill(source)
+	lint, err := e.lintSkill(source, filepath.Base(destination))
 	if err != nil {
 		return nil, err
 	}

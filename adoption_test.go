@@ -66,6 +66,11 @@ func TestPreparePreviewApplyAndRecovery(t *testing.T) {
 		t.Fatal(plan, urls)
 	}
 	quarantine := str(plan["quarantine"])
+	for _, issue := range plan["promotion"].(M)["lint_issues"].([]M) {
+		if issue["code"] == "name-directory" {
+			t.Fatal("temporary quarantine directory was linted as the installation directory")
+		}
+	}
 	digest := str(plan["promotion"].(M)["tree_sha256"])
 	reviewDigest := str(plan["promotion"].(M)["review_sha256"])
 	_, err = f.e.Promote(quarantine, destination, "", false, true)
