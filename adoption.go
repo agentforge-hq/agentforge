@@ -231,7 +231,7 @@ func (e *Engine) PrepareAdoption(data []byte, index int, destination, harness, s
 	if filepath.Base(destination) != selected.Name || managedReason(destination) != "" {
 		return nil, errors.New("choose a new user-owned directory matching the selected skill name")
 	}
-	state, err = e.outsideRoots(state, project)
+	state, err = e.outsideRoots(state, project, roots...)
 	if err != nil {
 		return nil, err
 	}

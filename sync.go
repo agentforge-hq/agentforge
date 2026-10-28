@@ -14,10 +14,19 @@ import (
 	"unicode/utf8"
 )
 
-func (e *Engine) outsideRoots(state, project string) (string, error) {
+func (e *Engine) outsideRoots(state, project string, explicitRoots ...string) (string, error) {
 	state, err := realPath(state)
 	if err != nil {
 		return "", err
+	}
+	for _, root := range explicitRoots {
+		resolved, err := realPath(root)
+		if err != nil {
+			return "", err
+		}
+		if within(state, resolved) {
+			return "", fmt.Errorf("state/quarantine must be outside skill scan roots: %s", root)
+		}
 	}
 	scopes, err := projectScopes(project)
 	if err != nil {

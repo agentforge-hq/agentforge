@@ -302,3 +302,17 @@ func TestPreparedPromotionPreservesRawManifest(t *testing.T) {
 		}
 	}
 }
+
+func TestPrepareRejectsQuarantineInExplicitRoot(t *testing.T) {
+	f := setup(t)
+	files := map[string]string{"SKILL.md": skillManifest("example")}
+	selected := adoptionResult(t, files)
+	urls := mockPackage(t, f, selected, files)
+	customRoot := filepath.Join(f.root, "custom-skills")
+	_, err := f.e.PrepareAdoption(resultJSON(t, selected), 1,
+		filepath.Join(customRoot, "example"), "codex", filepath.Join(customRoot, "pending"), f.root, []string{customRoot})
+	reject(t, err)
+	if len(*urls) != 0 || exists(customRoot) {
+		t.Fatal("quarantine inside an explicit root reached network or staging")
+	}
+}
