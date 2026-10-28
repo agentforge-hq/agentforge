@@ -110,7 +110,7 @@ Cold storage changes future discovery; it cannot remove content already read
 into a conversation. See [the rubric](references/eval-rubric.md) and
 [maintenance playbooks](references/healing-playbooks.md) for verification boundaries.
 
-The experimental `search` command connects to the [hosted discovery prototype](https://agentforge-five-sandy.vercel.app).
+The experimental `search` command connects to the [hosted discovery prototype](https://lordoftheskill.com).
 It sends the explicit task query, harness identifier, and result limit. Optional
 `--available-tool`, `--no-tools`, `--allow-setup`, and `--allow-credentials` flags
 send caller-supplied constraints. It never uploads local inventory.

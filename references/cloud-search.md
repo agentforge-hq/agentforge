@@ -127,7 +127,7 @@ review and does not delete preexisting user files.
 ## Service boundaries
 
 The default endpoint is
-https://agentforge-five-sandy.vercel.app/api/v1/search. No API key is needed.
+https://lordoftheskill.com/api/v1/search. No API key is needed.
 An endpoint override is an explicit operator choice. The service returns
 source-pinned metadata from keyword and embedding retrieval. `lexical_only`
 means semantic retrieval was unavailable. Indexing is not a security review.
