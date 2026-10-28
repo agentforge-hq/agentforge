@@ -8,14 +8,45 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
 
 const DefaultSearchEndpoint = "https://agentforge-five-sandy.vercel.app/api/v1/search"
 
-// CloudSearch sends only the explicit task query and optional harness identifier.
+var toolNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+\-]{0,63}$`)
+
+type SearchConstraints struct {
+	AvailableTools   []string `json:"available_tools"`
+	AllowSetup       bool     `json:"allow_setup"`
+	AllowCredentials bool     `json:"allow_credentials"`
+}
+
+func (c SearchConstraints) validated() (SearchConstraints, error) {
+	if len(c.AvailableTools) > 32 {
+		return c, errors.New("available tools must contain at most 32 names")
+	}
+	if c.AvailableTools != nil {
+		names := map[string]bool{}
+		for _, name := range c.AvailableTools {
+			if !toolNameRE.MatchString(name) {
+				return c, errors.New("use tool names of at most 64 characters, not paths or credentials")
+			}
+			names[strings.ToLower(name)] = true
+		}
+		c.AvailableTools = sortedKeys(names)
+	}
+	return c, nil
+}
+
+// CloudSearch preserves the original query-only request contract.
 func CloudSearch(query, harness, endpoint string, limit int) (M, error) {
+	return CloudSearchWithConstraints(query, harness, endpoint, limit, nil)
+}
+
+// CloudSearchWithConstraints sends only explicit caller input, never local inventory.
+func CloudSearchWithConstraints(query, harness, endpoint string, limit int, constraints *SearchConstraints) (M, error) {
 	query = strings.TrimSpace(query)
 	if query == "" || len([]byte(query)) > 2048 {
 		return nil, errors.New("query must contain 1 to 2048 UTF-8 bytes")
@@ -40,6 +71,13 @@ func CloudSearch(query, harness, endpoint string, limit int) (M, error) {
 		return nil, errors.New("search endpoint requires HTTPS, except for loopback development")
 	}
 	payload := M{"query": query, "limit": limit}
+	if constraints != nil {
+		validated, err := constraints.validated()
+		if err != nil {
+			return nil, err
+		}
+		payload["constraints"] = validated
+	}
 	if harness != "" {
 		payload["harness"] = harness
 	}

@@ -567,6 +567,9 @@ func (e *Engine) exportSkill(source, harness, destination string, options Export
 		content += "context: fork\n"
 	}
 	content += "---\n" + fm.Body
+	if pinned != "" {
+		dropped = []string{}
+	}
 	if options.Format == "cursor-rule" {
 		if harness != "cursor" || options.Isolate {
 			return nil, errors.New("cursor-rule format requires harness cursor")
@@ -693,8 +696,10 @@ func (e *Engine) exportSkill(source, harness, destination string, options Export
 				return nil, err
 			}
 		}
-		if err = os.WriteFile(filepath.Join(staging, "SKILL.md"), []byte(content), 0600); err != nil {
-			return nil, err
+		if pinned == "" {
+			if err = os.WriteFile(filepath.Join(staging, "SKILL.md"), []byte(content), 0600); err != nil {
+				return nil, err
+			}
 		}
 	}
 	current, err := e.treeDigest(source)
@@ -703,6 +708,12 @@ func (e *Engine) exportSkill(source, harness, destination string, options Export
 	}
 	if current != expected {
 		return nil, errors.New("source changed during export")
+	}
+	if pinned != "" {
+		copied, err := e.treeDigest(staging)
+		if err != nil || copied != pinned {
+			return nil, errors.New("copied package differs from the reviewed fingerprint")
+		}
 	}
 	if candidate != "" {
 		if err = os.Link(candidate, destination); err != nil {
@@ -735,6 +746,45 @@ func (e *Engine) Promote(quarantine, destination, reviewed string, acceptFinding
 	if digest != str(manifest["tree_sha256"]) {
 		return nil, errors.New("quarantine contents changed; fetch/inspect again")
 	}
+	destination, err = absolute(destination)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = os.Lstat(destination); !errors.Is(err, os.ErrNotExist) {
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("destination already exists: %s", destination)
+	}
+	reviewDigest := digest
+	if raw, ok := manifest["catalog_result"]; ok {
+		data, err := json.Marshal(raw)
+		if err != nil {
+			return nil, err
+		}
+		selected := selectedSkill{}
+		if json.Unmarshal(data, &selected) != nil {
+			return nil, errors.New("invalid selected source in quarantine manifest")
+		}
+		if err = selected.validate(str(manifest["prepared_harness"])); err != nil {
+			return nil, err
+		}
+		skillPath := selected.Source.SkillPath
+		if skillPath == "." {
+			skillPath = ""
+		}
+		if manifest["commit"] != selected.Source.Revision || manifest["repository"] != selected.Source.Repository || manifest["skill_path"] != skillPath || manifest["prepared_destination"] != destination {
+			return nil, errors.New("quarantine source or destination no longer agrees with the selected result; prepare again")
+		}
+		if err = e.verifyPackage(source, selected); err != nil {
+			return nil, err
+		}
+		binding, err := json.Marshal(M{"tree_sha256": digest, "selected": selected, "destination": destination, "harness": manifest["prepared_harness"], "state": manifest["prepared_state"]})
+		if err != nil {
+			return nil, err
+		}
+		reviewDigest = hashBytes(binding)
+	}
 	inspection, err := e.Inspect(source)
 	if err != nil {
 		return nil, err
@@ -743,7 +793,12 @@ func (e *Engine) Promote(quarantine, destination, reviewed string, acceptFinding
 	if err != nil {
 		return nil, err
 	}
-	result := M{"operation": "promote", "applied": false, "destination": destination, "tree_sha256": digest, "inspection": inspection, "lint_issues": lint["issues"]}
+	result := M{"operation": "promote", "applied": false, "destination": destination, "tree_sha256": digest, "review_sha256": reviewDigest, "inspection": inspection, "lint_issues": lint["issues"]}
+	if selected, ok := manifest["catalog_result"]; ok {
+		result["selected"] = selected
+		result["removal_preview"] = []string{"agentforge", "sync", "cold", "--skill", destination, "--state-dir", str(manifest["prepared_state"])}
+		result["recovery"] = "Preview removal with sync cold, then repeat with --apply. Keep its transaction id and use sync restore --transaction ID with the same --state-dir, preview first and then --apply. Archiving cannot unload instructions already in this conversation."
+	}
 	if !apply {
 		return result, nil
 	}
@@ -752,15 +807,11 @@ func (e *Engine) Promote(quarantine, destination, reviewed string, acceptFinding
 			return nil, fmt.Errorf("static validation failed before promotion: %v", item)
 		}
 	}
-	if reviewed != digest {
-		return nil, errors.New("promotion requires --review-sha256 matching the inspected tree fingerprint")
+	if reviewed != reviewDigest {
+		return nil, errors.New("promotion requires --review-sha256 matching the promotion preview fingerprint")
 	}
 	if (len(inspection["findings"].([]M)) > 0 || len(inspection["unscanned"].([]M)) > 0) && !acceptFindings {
 		return nil, errors.New("review findings/unscanned files and use --accept-findings if intended")
-	}
-	destination, err = absolute(destination)
-	if err != nil {
-		return nil, err
 	}
 	text, err := readText(filepath.Join(source, "SKILL.md"), 1<<20)
 	if err != nil {

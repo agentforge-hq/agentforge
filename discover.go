@@ -211,8 +211,10 @@ func parseSource(source, ref string, skillPath *string) (SourceSelection, error)
 		return result, errors.New("invalid GitHub repository name")
 	}
 	if result.SkillPath != nil {
-		if _, err := safeRelative(*result.SkillPath); err != nil {
-			return result, err
+		if *result.SkillPath != "" {
+			if _, err := safeRelative(*result.SkillPath); err != nil {
+				return result, err
+			}
 		}
 	}
 	if result.Ref == "" {
@@ -347,6 +349,10 @@ func (e *Engine) unpackSkill(data []byte, selection SourceSelection, destination
 	return candidates[0], nil
 }
 func (e *Engine) Fetch(source, state, ref string, skillPath *string, expectedArchive string) (M, error) {
+	return e.fetch(source, state, ref, skillPath, expectedArchive, nil)
+}
+
+func (e *Engine) fetch(source, state, ref string, skillPath *string, expectedArchive string, selectedResult *selectedSkill) (M, error) {
 	selection, err := parseSource(source, ref, skillPath)
 	if err != nil {
 		return nil, err
@@ -363,6 +369,9 @@ func (e *Engine) Fetch(source, state, ref string, skillPath *string, expectedArc
 	sha := str(commit["sha"])
 	if !regexp.MustCompile(`^[0-9a-f]{40}$`).MatchString(sha) {
 		return nil, errors.New("GitHub did not return a pinned commit SHA")
+	}
+	if commitSHA.MatchString(selection.Ref) && sha != selection.Ref {
+		return nil, errors.New("GitHub commit does not match the requested pinned revision")
 	}
 	data, err = e.download("https://codeload.github.com/"+selection.Owner+"/"+selection.Repo+"/zip/"+sha, e.Config.Limits["download_bytes"])
 	if err != nil {
@@ -394,11 +403,19 @@ func (e *Engine) Fetch(source, state, ref string, skillPath *string, expectedArc
 	if len(fm.Problems) > 0 || !validName(name) {
 		return nil, errors.New("downloaded skill has invalid or unsupported metadata")
 	}
+	if selectedResult != nil {
+		if err = e.verifyPackage(filepath.Join(staging, "skill"), *selectedResult); err != nil {
+			return nil, err
+		}
+	}
 	inspection, err := e.Inspect(filepath.Join(staging, "skill"))
 	if err != nil {
 		return nil, err
 	}
 	manifest := M{"source": source, "repository": selection.Owner + "/" + selection.Repo, "commit": sha, "skill_path": selected, "name": name, "archive_sha256": archiveHash, "tree_sha256": inspection["tree_sha256"], "inspection": inspection, "status": "quarantined", "executed": false}
+	if selectedResult != nil {
+		manifest["catalog_result"] = *selectedResult
+	}
 	if err = atomicJSON(filepath.Join(staging, "manifest.json"), manifest); err != nil {
 		return nil, err
 	}

@@ -42,7 +42,7 @@ func repeatOption(name, help string) optionSpec {
 }
 
 var routes = map[string][]optionSpec{
-	"search":           specs(valueOption("query", "Task description to send to the skill catalog"), valueOption("harness", "Optional harness identifier"), valueOption("endpoint", "Explicit HTTPS search endpoint override"), optionSpec{Name: "limit", Default: "5", Help: "Maximum results (1..20)"}),
+	"search":           specs(valueOption("query", "Task description to send to the skill catalog"), valueOption("harness", "Optional harness identifier"), valueOption("endpoint", "Explicit HTTPS search endpoint override"), optionSpec{Name: "limit", Default: "5", Help: "Maximum results (1..20)"}, repeatOption("available-tool", "Explicit available tool name; never a path"), boolOption("no-tools", "Explicitly declare no available tools"), optionSpec{Name: "allow-setup", Boolean: true, Help: "Allow candidates needing setup (true or false)"}, optionSpec{Name: "allow-credentials", Boolean: true, Help: "Allow candidates needing credentials (true or false)"}),
 	"audit":            specs(repeatOption("root", "Use only these skill roots instead of configured roots and rules"), boolOption("fail-on-budget", "Exit 1 when a configured context budget is exceeded")),
 	"compare":          specs(valueOption("canonical", "Explicit skill to retain as the group reference"), repeatOption("copy", "Copy to compare; otherwise discover the canonical skill's name group"), repeatOption("root", "Custom roots for name-group discovery"), boolOption("normalize-harness-paths", "Normalize known self paths for diagnostics; never enables deduplication"), boolOption("show-lines", "Include bounded changed text lines")),
 	"lint":             specs(repeatOption("root", "Inventory these skill roots"), valueOption("collision-threshold", "TF-IDF collision threshold (0..1)"), boolOption("full-matrix", "Include all pairwise cosine values"), valueOption("trigger-tests", "Local JSON trigger cases"), optionSpec{Name: "fail-under", Default: "0", Help: "Structural score floor (0..100)"}),
@@ -50,8 +50,9 @@ var routes = map[string][]optionSpec{
 	"sync cold":        specs(repeatOption("skill", "Skills to archive together in one transaction"), boolOption("apply", "Apply the previewed mutation")),
 	"sync restore":     specs(valueOption("transaction", "32-character transaction ID"), boolOption("apply", "Apply the previewed restore")),
 	"sync export":      specs(valueOption("skill", "Source skill"), valueOption("harness", "Target harness or portable"), valueOption("destination", "Exact new directory, rule or ZIP path"), boolOption("isolate", "Claude Code context: fork"), boolOption("allow-lossy", "Acknowledge fields listed as dropped"), optionSpec{Name: "format", Default: "skill", Help: "skill or cursor-rule"}, boolOption("apply", "Apply the previewed export")),
-	"sync promote":     specs(valueOption("quarantine", "Reviewed quarantine directory"), valueOption("destination", "Exact new skill directory"), valueOption("review-sha256", "Fingerprint from inspection"), boolOption("accept-findings", "Acknowledge reviewed findings and unscanned files"), boolOption("apply", "Apply the reviewed promotion")),
+	"sync promote":     specs(valueOption("quarantine", "Reviewed quarantine directory"), valueOption("destination", "Exact new skill directory"), valueOption("review-sha256", "Review fingerprint from promotion preview"), boolOption("accept-findings", "Acknowledge reviewed findings and unscanned files"), boolOption("apply", "Apply the reviewed promotion")),
 	"discover inspect": specs(valueOption("path", "Skill directory to inspect without execution")),
+	"discover prepare": specs(valueOption("result", "Saved search response or selected result JSON"), optionSpec{Name: "index", Default: "1", Help: "One-based search result index (1..20)"}, valueOption("destination", "Exact new user-owned skill directory"), valueOption("harness", "Harness where the skill will be used"), repeatOption("root", "Custom roots for local installed-skill comparison")),
 	"discover fetch":   specs(valueOption("ref", "Git ref (resolved to immutable commit)"), valueOption("skill-path", "Exact repository-relative skill path"), valueOption("archive-sha256", "Optional independently trusted archive checksum")),
 	"discover search":  specs(valueOption("query", "Public GitHub repository search query")),
 	"drift audit":      specs(valueOption("skill", "Skill directory"), valueOption("repo", "Git repository"), optionSpec{Name: "base", Default: "HEAD", Help: "Baseline commit/ref"}, repeatOption("transcript", "Local JSON/JSONL/text transcript"), repeatOption("pr", "Local exported PR JSON")),
@@ -149,7 +150,7 @@ func extractGlobals(arguments []string) ([]string, parsedOptions, error) {
 func rootHelp(writer io.Writer) {
 	fmt.Fprintln(writer, "agentforge — local-first skill audit and maintenance (Go, standard library only)")
 	fmt.Fprintln(writer, "\nUsage: agentforge [global options] COMMAND [options]")
-	fmt.Fprintln(writer, "\nCommands:\n  search              Find useful skills from an ordinary task description\n  audit (scan)         Inventory skills, duplicates and eager rules\n  compare             Explain differences against an explicitly chosen canonical skill\n  lint [SKILL ...]     Structural scores, script flags and lexical routing cases\n  sync dedupe|cold|restore|export|promote\n  discover inspect|fetch|search\n  drift audit|distill (automate-me)")
+	fmt.Fprintln(writer, "\nCommands:\n  search              Find useful skills from an ordinary task description\n  audit (scan)         Inventory skills, duplicates and eager rules\n  compare             Explain differences against an explicitly chosen canonical skill\n  lint [SKILL ...]     Structural scores, script flags and lexical routing cases\n  sync dedupe|cold|restore|export|promote\n  discover prepare|inspect|fetch|search\n  drift audit|distill (automate-me)")
 	fmt.Fprintln(writer, "\nManagement previews are read-only; --apply performs the explicit mutation.")
 	fmt.Fprintln(writer, "audit uses configured harness roots by default; lint without SKILL paths does the same.")
 	for _, definition := range globalOptions {
@@ -302,7 +303,7 @@ func Run(arguments []string, stdout, stderr io.Writer) int {
 	if state == "" {
 		state = e.defaultState()
 	}
-	if strings.HasPrefix(route, "sync ") || route == "discover fetch" || route == "drift distill" {
+	if strings.HasPrefix(route, "sync ") || route == "discover fetch" || route == "discover prepare" || route == "drift distill" {
 		state, err = e.outsideRoots(state, project)
 		if err != nil {
 			return fail(err)
@@ -319,7 +320,25 @@ func Run(arguments []string, stdout, stderr io.Writer) int {
 		if parseErr != nil {
 			return fail(errors.New("limit must be an integer"))
 		}
-		result, err = CloudSearch(options.value("query"), options.value("harness"), options.value("endpoint"), limit)
+		var constraints *SearchConstraints
+		_, setupSpecified := options.Values["allow-setup"]
+		_, credentialsSpecified := options.Values["allow-credentials"]
+		if options.Values["available-tool"] != nil || options.boolean("no-tools") || setupSpecified || credentialsSpecified {
+			constraints = &SearchConstraints{AvailableTools: options.Values["available-tool"], AllowSetup: true, AllowCredentials: true}
+			if options.boolean("no-tools") {
+				if len(constraints.AvailableTools) > 0 {
+					return fail(errors.New("--no-tools cannot be combined with --available-tool"))
+				}
+				constraints.AvailableTools = []string{}
+			}
+			if setupSpecified {
+				constraints.AllowSetup = options.boolean("allow-setup")
+			}
+			if credentialsSpecified {
+				constraints.AllowCredentials = options.boolean("allow-credentials")
+			}
+		}
+		result, err = CloudSearchWithConstraints(options.value("query"), options.value("harness"), options.value("endpoint"), limit, constraints)
 	case "audit":
 		result, err = e.Scan(project, options.Values["root"])
 		if err == nil {
@@ -484,6 +503,19 @@ func Run(arguments []string, stdout, stderr io.Writer) int {
 			return fail(err)
 		}
 		result, err = e.Inspect(options.value("path"))
+	case "discover prepare":
+		if err = require(options, "result", "destination", "harness"); err != nil {
+			return fail(err)
+		}
+		index, parseErr := strconv.Atoi(options.value("index"))
+		if parseErr != nil {
+			return fail(errors.New("index must be an integer between 1 and 20"))
+		}
+		data, readErr := readPackageFile(options.value("result"), 1<<20)
+		if readErr != nil {
+			return fail(readErr)
+		}
+		result, err = e.PrepareAdoption(data, index, options.value("destination"), options.value("harness"), state, project, options.Values["root"])
 	case "discover fetch":
 		if len(options.Positional) != 1 {
 			return fail(errors.New("fetch requires exactly one source"))

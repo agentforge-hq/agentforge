@@ -137,7 +137,11 @@ record provenance, not trust.
 
 Inspect every instruction and supporting file; injection findings can be false
 positives and scans can miss attacks. After review, repeat promotion with
-`--review-sha256` equal to the current `tree_sha256` and `--apply`. Findings or
+`--review-sha256` equal to the promotion preview's `review_sha256` and `--apply`. Findings or
 unscanned binary content also require `--accept-findings`. Changed content
 invalidates the review fingerprint. Review harness-specific metadata losses
 through export before activating a non-portable skill. No uploads occur.
+For a catalog recommendation, use [guided preparation](cloud-search.md) to bind
+the selected source, complete package manifest when available, and destination
+to the review fingerprint. Unbound quarantines retain their tree fingerprint.
+Reviewed promotion preserves package bytes. It does not translate frontmatter.
